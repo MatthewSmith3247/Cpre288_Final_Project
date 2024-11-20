@@ -1,0 +1,571 @@
+/**
+ * lab5_template.c
+ * 
+ * Template file for CprE 288 lab 5
+ *
+ * @author Zhao Zhang, Chad Nelson, Zachary Glanz
+ * @date 08/14/2016
+ *
+ * @author Phillip Jones, updated 6/4/2019
+ */
+
+#include "button.h"
+#include "timer.h"
+#include "math.h"
+#include "lcd.h"
+#include "open_interface.h"
+#include "uart.h"  // Functions for communicate between CyBot and Putty (via UART)
+                         // PuTTy: Baud=115200, 8 data bits, No Flow Control, No Party,  COM1
+
+#include "adc.h"
+#include "servo.h"
+#include "movement.h"
+#include "ping.h"
+#include "audio.h"
+
+//#warning "Possible unimplemented functions"
+//#define REPLACEME 0
+
+
+// Defined in button.c : Used to communicate information between the
+// the interrupt handler and main.
+//extern volatile int button_event;
+//extern volatile int button_num;
+
+//For Ping Library Interrupts
+volatile char flag = 0;
+volatile unsigned int overflow_count;
+
+
+
+void cybot_send_string(char string[50]){  // sends a string to PuTTy
+
+    int j;
+    for(j = 0; j <= strlen(string); j++){
+        uart_sendChar(string[j]);
+    }
+
+}
+
+
+
+int scan_180(int startDeg, int endDeg){
+
+    //scan variable declaration
+    char scanned_data[45];
+    float scanned_distance_vals_PING[4];
+    float scanned_distance_vals_IR[4];
+    float val[5], temp;
+    int j;
+    int scanned_degree_vals[4], midpoint_angle;
+    int alreadyRec = 0;
+    float min;
+    int min_inital_angle, min_final_angle;
+
+
+    // Variables for object count FIXME move to correct scope (m)
+    int object_count = 0;
+    float object_distance[5], delta_distance; // lets try not to hard code a finite amount of these objects to make future labs easier
+    int initial_angle[5]; // lets try not to hard code a finite amount of these objects to make future labs easier
+    int final_angle[5];
+    float initial_dist[5];
+    float final_dist[5];
+    float linear_distance[5];
+   // cyBOT_Scan_t collected_data;
+
+    //initialize for IR
+
+    //char buffer[10];
+    object_count = 0;
+    alreadyRec = 0; // reset to 0 before scan
+    oi_setWheels(0, 0);
+    int i = 2;
+    int curr_degree = startDeg;
+    cybot_send_string("Degrees\t\tDistance IR\n");
+    if (curr_degree == 0){
+    servo_move(0);
+    timer_waitMillis(300); // FIX ME
+    // Hard set point 1 of scan
+    servo_move(0);
+    scanned_distance_vals_IR[0] = 250; // find the distance away from IR sensor at given degree for IR and translate it
+    scanned_degree_vals[0] = 0; // take account for what degree you are located at
+    servo_move(2 );
+    //hard set point 2 of array
+    scanned_distance_vals_IR[1] = 250; // find the distance away from IR sensor at given degree for IR and translate it
+    scanned_degree_vals[1] = 2; // take account for what degree you are located at
+    curr_degree = 4;
+    }
+    else {
+        servo_move(startDeg );
+           timer_waitMillis(300);
+           // Hard set point 1 of scan
+           servo_move(startDeg );
+           scanned_distance_vals_IR[0] = clean_IR_val(); // find the distance away from IR sensor at given degree for IR and translate it
+           scanned_degree_vals[0] = startDeg; // take account for what degree you are located at
+           servo_move((startDeg + 2) );
+           //hard set point 2 of array
+           scanned_distance_vals_IR[1] = clean_IR_val(); // find the distance away from IR sensor at given degree for IR and translate it
+           scanned_degree_vals[1] = startDeg + 2; // take account for what degree you are located at
+           curr_degree = startDeg + 4;
+
+    }
+    // collect data
+    while (curr_degree <= endDeg){
+        servo_move(curr_degree ); // scanning
+        // take in all values for current scan
+        scanned_distance_vals_PING[2] = ping_read(); // find the distance away from IR sensor at given degree for PING
+        // take in 3 values at current angle and translate to cm
+           timer_waitMillis(10);
+        for(i = 0; i < 5; i++){
+            val[i] = clean_IR_val();
+           timer_waitMillis(10);
+        }
+        // bubble sort to get outliers at index 0 and index 4
+       for(j = 0; j < 3; j++){
+            for(i = 0; i<4; i++){
+                if(val[i] > val[i+1]){
+                    temp = val[i];
+                    val[i] = val[i+1];
+                    val[i+1] = temp;
+                }
+
+            }
+       }
+        // average the three values and store
+        scanned_distance_vals_IR[2] = (val[1] + val[2] + val[3])/3;
+
+        if(scanned_distance_vals_IR[2] > 100){
+            scanned_distance_vals_IR[2] = 250;
+        }
+
+
+        // take account for what degree you are located at
+        scanned_degree_vals[2] = curr_degree;
+
+            // clean middle piece of data i.e data in scanned_distance_vals[1]
+                //clean PING
+         //      if ( scanned_distance_vals_PING[0] < (scanned_distance_vals_PING[2] + 20) && scanned_distance_vals_PING[0] > (scanned_distance_vals_PING[2] - 20)){
+         //                  scanned_distance_vals_PING[1] = (scanned_distance_vals_PING[0] + scanned_distance_vals_PING[2]) / 2; // Matt is paranoid............
+         //      }
+               //Clean IR
+               if ( scanned_distance_vals_IR[0] < (scanned_distance_vals_IR[2] + 20) && scanned_distance_vals_IR[0] > (scanned_distance_vals_IR[2] - 20)){
+                                            scanned_distance_vals_IR[1] = (scanned_distance_vals_IR[0] + scanned_distance_vals_IR[2]) / 2;
+                                 }
+
+           // Find Objects and widths
+               if (object_count < 5 && curr_degree > 4){
+                delta_distance = scanned_distance_vals_IR[1] - scanned_distance_vals_IR[0];
+                //alreadyRec is an int for seeing if you are already recording, to prevent two objects at the same degree
+                if(delta_distance <= -30 && alreadyRec == 0){ // falling edge, if there is a change in distance that is drastic
+                    alreadyRec = 1;
+                    initial_angle[object_count] = scanned_degree_vals[0]; // take initial angle measurement
+                    initial_dist[object_count] = scanned_distance_vals_IR[1]; //record that new radius away ///FIX ME CHANGED SCNDDIST_IR from 0 to 1
+
+
+                }else if( delta_distance >= 30 && alreadyRec == 1) { //rising edge, if there is a change in distance that is drastic
+                    final_angle[object_count] = scanned_degree_vals[0]; // record the final angle of the object
+                    final_dist[object_count] = scanned_distance_vals_IR[1];
+                    if(final_angle[object_count] - initial_angle[object_count] <= 2 || final_angle[object_count] - initial_angle[object_count] >= 75 ){ ///FIX ME CHANGED 6 to 2 in angle count
+
+
+                    }
+                    else{
+                           object_count ++; // record new object
+                           alreadyRec = 0;
+                    }
+
+               }
+               }
+        //send data to UART
+                   sprintf(scanned_data, "%d\t\t%.0f\t\n\r", scanned_degree_vals[0], scanned_distance_vals_IR[0]);
+                   cybot_send_string(scanned_data);
+
+        // rotate values to the left 1 spot in the array
+               //Ping
+               scanned_distance_vals_PING[0] = scanned_distance_vals_PING[1];
+               scanned_distance_vals_PING[1] = scanned_distance_vals_PING[2];
+               // IR
+               scanned_distance_vals_IR[0] = scanned_distance_vals_IR[1];
+               scanned_distance_vals_IR[1] = scanned_distance_vals_IR[2];
+               //Degrees
+               scanned_degree_vals[0] = scanned_degree_vals[1];
+               scanned_degree_vals[1] = scanned_degree_vals[2];
+
+
+        curr_degree = curr_degree + 2; //Increment to collect data every 2 degrees
+        timer_waitMillis(10);
+
+    }
+    // send last 2 values
+    sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[1], scanned_distance_vals_IR[1]);
+    cybot_send_string(scanned_data);
+    sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[2], scanned_distance_vals_IR[2]);
+    cybot_send_string(scanned_data);
+
+    // PING to Center of Objects
+    for(i = 0; i < object_count; i++){
+        // Find midpoint of angles
+        midpoint_angle = (final_angle[i] - initial_angle[i])/2 + initial_angle[i];
+        // Take reading at midpoint
+        servo_move(midpoint_angle );
+        timer_waitMillis(1000);
+        servo_move(midpoint_angle );
+        // store PING value from reading
+        object_distance[i] = ping_read();
+        lcd_printf("%.0f",  object_distance[i]);
+
+    }
+
+             //LINEAR DIST
+          float delta_angle;
+          for(i = 0; i < object_count; i++){
+              delta_angle = ( final_angle[i] - initial_angle[i] ) / 2; //POSSIBLE FIXME
+              //other_angle = (180 - delta_angle)/2;
+             // linear_distance[i] = sqrt(pow(object_distance[i],2) + pow(object_distance[i],2) * object_distance[i] * object_distance[i] * cos(delta_angle));
+              //linear_distance[i] = sin(delta_angle*(M_PI/180)) * (object_distance[i] / sin(other_angle*(M_PI/180)));
+              linear_distance[i] = sqrt(pow(object_distance[i],2) + pow(object_distance[i],2) - (2*object_distance[i]*object_distance[i]*cos(delta_angle*(M_PI/180))));
+              //linear_distance[i] = 2 * object_distance[i] * sin(delta_angle*(M_PI/180));
+          }
+          // send new header
+           /*cybot_send_string("Object #\tInitial Angle\tFinal Angle\t Distance\tLinear Width\t initial dist\tfinal dist\n\r");
+               for(i = 0; i < object_count; i++){
+                   sprintf(scanned_data, "%d\t\t%d\t\t%d\t\t%.0f\t\t%.2f\t\t%0.0f\t\t%0.0f\n\r", (i + 1), initial_angle[i],final_angle[i], object_distance[i], linear_distance[i],initial_dist[i],final_dist[i]); // add linear distance afterwards );
+                   cybot_send_string(scanned_data);
+               }*/
+               // point sensor to smallest width object
+               min = linear_distance[0];
+               min_inital_angle = initial_angle[0];
+               min_final_angle = final_angle[0];
+
+               for(i = 0; i < object_count; i++){
+
+                     if( linear_distance[i] < min) {
+                     min = linear_distance[i];
+                     min_inital_angle = initial_angle[i];
+                     min_final_angle = final_angle[i];
+                     }
+                     }
+
+
+              midpoint_angle = (min_final_angle - min_inital_angle)/2 + min_inital_angle;
+
+             servo_move(midpoint_angle);
+
+             return midpoint_angle;
+}
+
+
+
+int main(void) {
+    timer_init();
+    lcd_init();
+    timer_waitMillis(10);
+	adc_init();
+	configure_timer(); // ping init
+	servo_init();
+    button_init();
+    init_button_interrupts();
+    oi_t *sensor_data = oi_alloc();
+    oi_init(sensor_data); // should turn the iRobot Create's "Dirt Detect" LED to blue "
+    uart_init(115200);
+    Audio_Init();
+
+    timer_waitMillis(10);
+	            // Don't forget to initialize the cyBot UART before trying to use it
+
+	//variables used later
+	char scanned_data[45];
+	int total_distance = 0;
+
+	//---------------Part 2--------------------
+/*
+
+     cyBot_uart_init_clean();  // Clean UART initialization, before running your UART GPIO init code
+
+	// Complete this code for configuring the  (GPIO) part of UART initialization
+     SYSCTL_RCGCGPIO_R |= 0b00000010; //want the clock for portB because that is the port we are using
+     timer_waitMillis(1);            // Small delay before accessing device after turning on clock
+
+     // Looking at the table in the data sheet on page 1351, we see that Port B has UART capabilities with PB0 and PB1, so we want to enable those
+
+     GPIO_PORTB_AFSEL_R |= 0b00000011;  // 1's in the AFSEL indicates using peripherals
+     GPIO_PORTB_PCTL_R &= 0x00000011;   // Force 0's in the desired locations :: we only need Byte 0 and 1 to be using peripherals, so we force the rest to 0
+     GPIO_PORTB_PCTL_R |= 0x00000011;   // Force 1's in the desired locations :: we need to ensure Byte 0 and 1 are using peripherals, so we turn to 1
+     GPIO_PORTB_DEN_R |= 0b00000011;    // We need to enable digital functions by pushing a 1
+     GPIO_PORTB_DIR_R &= 0b00000010;   // Force 0's in the desired locations ::
+     GPIO_PORTB_DIR_R |= 0b00000010;   // Force 1's in the desired locations  :: U1RX (Byte 0) is Input & U1TX(Byte 1) is Output
+     cyBot_uart_init_last_half();      // Complete the UART device initialization part of configuration
+	*/
+    //----------------------------------------
+
+     //---------------Part 3--------------------
+     // Initialize scan sensors
+    // cyBOT_init_Scan(0b0011); // enables Servo, Ping and IR
+     //cyBOT_SERVO_cal(); // calibrate Sensor
+     //right_calibration_value = 280000; //cybot specific
+     //left_calibration_value = 1230250; // cybot specific
+     //cyBOT_Scan_t Scan; // Create a Scan Variable for the Struct in cyBot_Scan.h
+
+     //----------------------------------------
+
+     //---------------Part 4--------------------
+
+
+     oi_setWheels(0, 0);
+    char message[50];
+    char buffer;
+       int j = 0;
+       while(1){
+         lcd_printf("Running");
+         cybot_send_string("Hi\n");
+         buffer = uart_receive();
+             while(buffer != '\n'){
+                 // while loop receives entire string to cybot instead of just one byte
+                 message[j] = buffer;
+                 lcd_putc(message[j]);
+                 j++;
+                 buffer = uart_receive();
+             }
+         if(strcmp(message, "Hello")){
+             cybot_send_string("Working\n");
+             break;
+         }
+     }
+
+
+     //---------------Part 2--------------------
+        /*  test PuTTy
+             cybot_send_string("Hi\n");
+             char message = cyBot_getByte_blocking();
+             cyBot_sendByte(message);
+            // lcd_printf(message);
+              if (message == 'h'){
+                  cybot_send_string("Hi");
+              }
+         //----------------------------------------
+	while(1)
+	{
+	    //---------------Part 1--------------------
+	        // lcd_printf("Button is %u",button_num);
+	    //----------------------------------------
+
+	    //---------------Part 3--------------------
+	    message = cyBot_getByte_blocking();
+	    int value;
+	     float dist;
+	     char buffer[10];
+	     if (message == 'm'){ //Collect Data to Calibrate
+	        cyBOT_Scan(90, &Scan); // take a scan straight ahead
+	        value = Scan.IR_raw_val; // retrieve the value at IR_raw_val in cm
+	        sprintf(buffer, "%d\n\r", value); // the functions to write to Putty require char's, sprintf helps parse from type int to type char
+	        cybot_send_string(buffer);
+	     }
+	     if (message == 'd'){
+	     // find distance from cyBot to object
+	         cyBOT_Scan(90, &Scan); // take a scan straight ahead
+	         dist = Scan.IR_raw_val; // retrieve the value at IR_raw_val in cm
+	         // using the fifth order polynomial from Matlab to find the correct distance
+	         dist = (239.1508)  // constant
+	                 + dist*(-0.1788)       // first order
+	                + pow(dist, 2)*(-2.125)*(pow(10,(-4)))         //second order
+	                + pow(dist, 3)*(3.2287)*(pow(10, (-7)))       // third order
+	                + pow(dist, 4)*(-1.4307)*(pow(10,(-10)))     // fourth order
+	                + pow(dist, 5)*(2.1445)*(pow(10,(-14)));    // fifth order
+
+
+	         lcd_clear();
+	         lcd_printf("Object is %.0f centimeters away", dist); // print to lcd screen
+	     }*/
+	    //----------------------------------------
+
+	     //---------------Part 4--------------------
+	   //message = uart_receive();
+       while(1){
+	    buffer = uart_receive();
+	    int mid_point_angle_small_obj;
+
+	    j = 0;
+	    while(buffer != '\n'){
+	                     message[j] = buffer;
+	                     lcd_putc(message[j]);
+	                     j++;
+	                     buffer = uart_receive();
+	                 }
+	    lcd_printf(message);
+        timer_waitMillis(10);
+        int command = 4;
+	    switch (message[0]){
+	    // switch only over the first index of the message
+
+	    case 'x':
+	        Audio_SendCommand(command);
+            break;
+
+	    case 'w' :
+	        oi_setWheels(0, 0);
+            timer_waitMillis(100);
+	        oi_setWheels(250, 250);
+	        lcd_clear();
+	        timer_waitMillis(100);
+	        cybot_send_string("Driving Forward\n");
+	        break;
+
+	    case 'a':
+	        oi_setWheels(0, 0);
+            timer_waitMillis(100);
+	        oi_setWheels(250, -250);
+	        lcd_clear();
+            timer_waitMillis(100);
+            cybot_send_string("Turning Left\n");
+	        break;
+	    case 'd' :
+	        oi_setWheels(0, 0);
+            timer_waitMillis(100);
+	        oi_setWheels(-250, 250);
+	        lcd_clear();
+            timer_waitMillis(100);
+            cybot_send_string("Turning Right\n");
+	        break;
+	        // LETS SCAN!!
+       case 'm':
+           cybot_send_string("m\n");
+           mid_point_angle_small_obj = 0;
+           mid_point_angle_small_obj =  scan_180(0,180);
+           lcd_printf("%.0f\t", mid_point_angle_small_obj);
+           float object_dist = ping_read();
+           lcd_printf("%.0f\t", object_dist);
+           break;
+
+
+       case 'h':
+           lcd_clear();
+           cybot_send_string("m\n");
+           total_distance = 0;
+           mid_point_angle_small_obj = 0;
+           mid_point_angle_small_obj =  scan_180(0,180);
+           lcd_printf("%.0f", mid_point_angle_small_obj);
+           //sprintf(scanned_data, "Midpoint received: %d\n\r",mid_point_angle_small_obj ); // add linear distance afterwards );
+           //cybot_send_string(scanned_data);
+           float object_distance_1 = 0;
+           float object_distance_2 = 0;
+           float object_distance_3 = 0;
+           float avg_distance = 0;
+           float drive_distance = 0;
+           int turnVal;
+           int found = 0;
+
+
+           while (found != 1){
+               //sprintf(scanned_data, "Made it to here!!");
+               //cybot_send_string(scanned_data);
+             //  message = uart_receive();
+               total_distance += sensor_data->distance;
+
+               //check our flag see if another key has been pushed and exit autonomous
+                /*   if(flag == 1 && uart_data == 't' ){
+
+                       //reset our flag for the next interrupt
+                       flag = 0;
+
+                       //Display our character on the LCD
+                       lcd_putc(uart_data);
+
+                       //Echo recieved
+                       uart_sendChar(uart_data);
+                       break;
+
+                   }*/
+                // check if the bump has been detected
+               //oi_update(sensor_data);
+               // if we bump we have to move around a short object
+
+
+               // if it is straight ahead move forward
+                 if(mid_point_angle_small_obj > 80 && mid_point_angle_small_obj < 100){
+
+                     // take a Ping Average Distance
+                     servo_move(mid_point_angle_small_obj);
+                     object_distance_1 = ping_read();
+                     timer_waitMillis(10);
+                     object_distance_2 = ping_read();
+                     timer_waitMillis(10);
+                     object_distance_3 = ping_read();
+                     timer_waitMillis(10);
+                     avg_distance = (object_distance_1 + object_distance_2 + object_distance_3) / 3;
+                     lcd_printf("Distance: %.0f Move?", avg_distance);
+                     // offset by 5cm
+                     drive_distance = (avg_distance - 6); // to go within 5 cm
+                     // Drive forward
+                     forward(drive_distance, sensor_data);
+
+                 }
+
+
+                 //if it is to the right turn right
+                 else if (mid_point_angle_small_obj <= 80){
+                    // sprintf(scanned_data, "Turning Right");
+                     // needs to turn right 90 - midpoint angle
+                         //bad accuracy for small turns
+                         turnVal = 90 - mid_point_angle_small_obj;
+                         lcd_printf("Turn Right: %d bc %d ", turnVal, mid_point_angle_small_obj);
+                         if(turnVal <= 30){ //FIXME
+                             rotate_right(sensor_data, turnVal + 10);
+
+                         }
+                         else {
+                         rotate_right(sensor_data, turnVal + 15);
+                         }
+                      }
+
+
+               //if it is to the left turn left
+                 else if (mid_point_angle_small_obj >= 100){
+
+                     //sprintf(scanned_data, "Turning Left");
+                        // needs to turn left midpoint angle - 90
+                         //bad accuracy for small turns
+                        turnVal = mid_point_angle_small_obj - 75;
+                        lcd_printf("Turn Left: %d bc %d ", turnVal, mid_point_angle_small_obj);
+                        rotate_left(sensor_data, turnVal);
+                    }
+
+             //once it turns it needs to rescan to check for the object
+                 mid_point_angle_small_obj =  scan_180(0,180);
+                 servo_move(mid_point_angle_small_obj);
+                 object_distance_1 = ping_read();
+
+               // see if the object is less than 5 cm in front of us and directly in front of us
+                if ((mid_point_angle_small_obj > 60 && mid_point_angle_small_obj < 150)  && object_distance_1  <= 6){
+                    lcd_printf("Found bc %.0f and %d ", mid_point_angle_small_obj, object_distance_1);
+                    found = 1;
+
+                }
+
+
+
+           }
+
+       break;
+	    case 's':
+	        oi_setWheels(0, 0);
+	        timer_waitMillis(100);
+	        oi_setWheels(-250, -250);
+	        lcd_clear();
+            timer_waitMillis(100);
+            cybot_send_string("Driving Backwards\n");
+	        break;
+	    case 'q':
+	        oi_setWheels(0, 0);
+	        cybot_send_string("Stopping\n");
+	        break;
+	    case 'p':
+	        oi_setWheels(0, 0);
+	        oi_free(sensor_data);
+	        break;
+	    default: cybot_send_string("Enter valid command\n");
+	        break;
+	       }
+
+	}
+
+}
