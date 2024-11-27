@@ -124,3 +124,36 @@ void uart_interrupt_handler()
     }
 
 }
+
+void connectToGui(){
+    oi_setWheels(0, 0);
+    char message[50];
+    char buffer;
+       int j = 0;
+       while(1){
+         lcd_printf("Running");
+         cybot_send_string("Hi\n");
+         buffer = uart_receive();
+             while(buffer != '\n'){
+                 // while loop receives entire string to cybot instead of just one byte
+                 message[j] = buffer;
+                 lcd_putc(message[j]);
+                 j++;
+                 buffer = uart_receive();
+             }
+         if(strcmp(message, "Hello")){
+             cybot_send_string("Working\n");
+             break;
+         }
+     }
+}
+
+void cybot_send_string(char string[50]){
+    // sends a string through UART
+
+    int j;
+    for(j = 0; j <= strlen(string); j++){
+        uart_sendChar(string[j]);
+    }
+
+}
