@@ -34,4 +34,8 @@ void uart_interrupt_init();
 
 void uart_interrupt_handler();
 
+void connectToGui(void);
+
+void cybot_send_string(char string[50]);
+
 #endif /* UART_H_ */
