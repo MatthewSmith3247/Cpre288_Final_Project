@@ -12,7 +12,6 @@
 #include "adc.h" //YES
 #include "methods.h" //YES
 #include "audio.h" //YES
-#include "cyBot_uart.h"
 
 int main(void)
 {
@@ -21,20 +20,23 @@ int main(void)
      *  - uart.c and uart.h I changed it from "void uart_init(int baud)" to "void uart_init()"
      *  - In ping.c ping_read I commented out overflow_count. I think this was a variable used from Jessica's and Matt's lab.
      */
-
     //INITIALIZE EVERYTHING AND CHECK THE ORDER
     oi_t *sensorData = oi_alloc();
     oi_init(sensorData);
 
+    //AUDIO WILL NEED TO CHANGE ITS UART CHANNEL SINCE UART4 is used by OI_INIT
+
     timer_init();
     lcd_init();
     button_init();
-    cyBot_uart_init();
+    init_button_interrupts();
 
-    //adc_init();
-    //uart_init();
-    //ping_init();
-    //servo_init();
+    adc_init();
+    uart_init(115200);
+    ping_init();
+    servo_init();
+    connectToGui();
+    manualDriver(sensorData);
 
     /* I want to Detect (move forward as long as there isn't an low object or out of bounds tape).
      * I also want to have a method called fastScan (scan every X amount have a new .c called methods that will contain all of our methods such as moveForwardount of degrees) that will be much faster than a normal full scan.
@@ -46,12 +48,16 @@ int main(void)
      * Could include a method that will only scan from 45 to 135 to see if the cybot will hit something instead of useing a faster scan for 180 degrees.
      */
 
-    while(1)
-    {
+/*
+    //fastScan(0,180);
+    fullScan(0,180);
+  //  while(1)
+   // {
        printIR(sensorData);
-    }
+   // }
 
     moveForwardDetect(sensorData, 2000);
-
+    oi_free(sensorData);
+    */
     return 0;
 }
