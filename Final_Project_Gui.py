@@ -175,7 +175,7 @@ def plot():
   # Note: added .1 to pi to go just beyond pi (i.e., 180 degrees) so that 180 degrees is displayed
     ax.grid(True)            # Show grid lines
 
-# Create title for plot (font size = 14pt, y & pad controls title vertical location)
+# Create title for plot (font size = 14pt, y & pad controls title vertical location) FIXME SHOW PLOT HERE
     ax.set_title("Mock-up Polar Plot of CyBot Sensor Scan from 0 to 180 Degrees", size=14, y=1.0, pad=-24) 
     plt.show()  # Display plot
 #---------------------------------End of Plot
@@ -191,9 +191,10 @@ x_values_short = np.array([0])  # x coordinates of short objects
 y_values_short = np.array([0])  # y coordinates of short objects
 
 #Cybot values to track the cybot orientation 
-global cybotx, cyboty, theta, distance, angle
-cybotx= 0.45
-cyboty = 0.45
+global cybotx, cyboty, theta, distance, angle, direction
+direction = "west"
+cybotx= 0.20
+cyboty = 0.20
 theta = 0
 
 
@@ -243,7 +244,7 @@ plot_config()
 #plot points for short objects
 #ax.scatter(x_values_short, y_values_short, color='red', label='Data Points2', s=100)
 #plot cybot
-ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='s', s=100)
+ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='>', s=125)
 
 #interactive mode to update plot dynamically
 plt.ion()
@@ -255,15 +256,23 @@ def update_plot():
     global cybotx
     global cyboty
     global x_values, y_values, x_values_short, y_values_short
-    print("In function " + str(cybotx) + "\n")
+    #print("In function " + str(cybotx) + "\n")
     #clear current plot
     ax.clear() 
     #plot tall objects
     ax.scatter(x_values, y_values, color='blue', label='Data Points', s=100)
     #plot Short objects
     ax.scatter(x_values_short, y_values_short, color='red', label='Data Points2', s=100)
-    #plot cybot
-    ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='s', s=100)
+    #plot cybot depending on direction it is facing
+    match direction:
+        case "north":
+            ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='v', s=125)
+        case "south":
+            ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='^', s=125)
+        case "east":
+            ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='<', s=125)
+        case "west":
+            ax.scatter(cybotx, cyboty, color='green', label='Cybot', marker='>', s=125)
     #add 'rooms'
     plot_rooms()
     #add config
@@ -271,7 +280,7 @@ def update_plot():
     #redraw plot
     plt.draw()
     plt.pause(0.5)
-    print("Redrawing plot " + str(cybotx) + "\n")
+    #print("Redrawing plot " + str(cybotx) + "\n")
 
 def add_object():
     #hopefully adding any object that the cybot "sees", which is a tall object 
@@ -306,6 +315,38 @@ def send_msg():
     if  rx_message == target_letter: 
         print("message was m or h\n") #want to print the graph
         plot() #def on line 97
+    movement = {
+        "north" : (0, -0.5),
+        "west" : (0.5, 0),
+        "east" : (-0.5, 0),
+        "south" : (0, 0.5)
+    }
+    global cybotx, cyboty, direction
+    match send_message:
+        case "w\n":
+            dx, dy = movement[direction]
+            cybotx += dx
+            cyboty += dy
+        case "s\n":
+            dx, dy = movement[direction]
+            cybotx += dx
+            cyboty += dy
+        case "a\n":
+            direction ={
+                "north" : "west",
+                "west" : "south",
+                "south" : "east",
+                "east" : "north",
+            }[direction]
+        case "d\n":
+            direction ={
+                "north" : "east",
+                "west" : "north",
+                "south" : "west",
+                "east" : "south",
+            }[direction]
+    print("X val: " + str(cybotx) + "Y val: " + str(cyboty) + "Direction: "+ direction)
+    update_plot()
         
 #--------------------------------- Basic Driving functions
 def forward():
@@ -359,6 +400,7 @@ def takingScanData():
      # Remove specific unwanted characters  
     clean_line = re.sub(r'[\x00]', '', line)
     print("Received message " + clean_line + "\n") 
+    #plot()
     while 'finished' not in clean_line:
         #Must be sending data on an object in format : Distance \t angle
         #split data from line into variables
@@ -372,8 +414,8 @@ def takingScanData():
             if distance < 50 and angle > 90 and angle < 170:
                 #Use those values to find the coordinates of the new object
                 angle -= 90
-                x_coord = cybotx + (distance*np.cos(np.deg2rad(angle)))/100
-                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/100
+                x_coord = cybotx + (distance*np.cos(np.deg2rad(angle)))/1000
+                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/1000
                 print("X Coord: " + str(x_coord) + " Y Coord: " + str(y_coord))
                 #append to array
                 x_values = np.append(x_values, x_coord)
@@ -381,8 +423,8 @@ def takingScanData():
             elif distance < 50 and angle >= 20 and angle <= 90:
                 #Use those values to find the coordinates of the new object
                 angle = 90 - angle
-                x_coord = cybotx+ (distance*np.cos(np.deg2rad(angle)))/100
-                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/100
+                x_coord = cybotx+ (distance*np.cos(np.deg2rad(angle)))/1000
+                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/1000
                 print("X Coord: " + str(x_coord) + " Y Coord: " + str(y_coord))
                 #append to array
                 x_values = np.append(x_values, x_coord)
@@ -393,10 +435,15 @@ def takingScanData():
             clean_line = re.sub(r'[\x00]', '', line)
     print("count: " + str(count))
 
+def setLoc():
+    global cybotx, cyboty
+    cybotx = 3.75
+    cyboty = .57
+    update_plot()
 #--------------------------------- Cybot Tracking Functions     
-def bumpLeftMovingPosX():
+def bumpLeft():
     #the cybot hit an object with the left bump sensor 
-    global cyboty, cybotx, x_values_short, y_values_short
+    global  cybotx, cyboty, x_values_short, y_values_short
     #Need to recieve the distance traveled from the cybot in order to pinpoint object location ONLY NEED X DIRECTION
     #line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
@@ -406,14 +453,13 @@ def bumpLeftMovingPosX():
     x_values_short = np.append(x_values_short, cybotx)
     y_values_short = np.append(y_values_short, cyboty)
     #update cybot location // only y direction though??? FIXME
-    cyboty-= 0.25 #FIXME should be value the cybot moves to the right to avoid an object
     update_plot()
     #Now cybot will scan to the right to see if it is an ideal move path???
     # FIXME 
 
-def bumpRightMovingPosX():
+def bumpRight():
     #the cybot hit an object with the left bump sensor 
-    global cyboty, cybotx, x_values_short, y_values_short
+    global cybotx, cyboty, x_values_short, y_values_short
     #Need to recieve the distance traveled from the cybot in order to pinpoint object location ONLY NEED X DIRECTION
     #line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
@@ -423,85 +469,127 @@ def bumpRightMovingPosX():
     x_values_short = np.append(x_values_short, cybotx)
     y_values_short = np.append(y_values_short, cyboty)
     #update cybot location
-    cyboty += 0.25 #FIXME should be value the cybot moves to the left to avoid an object
     update_plot()
     #Now cybot will scan to the left to see if it is an ideal move path???
-    # FIXME 
+    # FIXME  
 
-def bumpLeftMovingNegX():
-    #the cybot hit an object with the left bump sensor 
-    global cyboty, cybotx, x_values_short, y_values_short
-    #Need to recieve the distance traveled from the cybot in order to pinpoint object location ONLY NEED X DIRECTION
-    #line = cybot.readline().decode().strip() 
-     # Remove specific unwanted characters  
-    #clean_line = re.sub(r'[\x00]', '', line) 
-    #Object is right to the left of the cybot 
-    #add values to the array
-    x_values_short = np.append(x_values_short, cybotx)
-    y_values_short = np.append(y_values_short, cyboty)
-    #update cybot location // only y direction though??? FIXME
-    cyboty-= 0.25 #FIXME should be value the cybot moves to the right to avoid an object
-    update_plot()
-    #Now cybot will scan to the right to see if it is an ideal move path???
-    # FIXME 
+def turnedClockwise():
+    global direction
+    direction ={
+                "north" : "east",
+                "west" : "north",
+                "south" : "west",
+                "east" : "south",
+            }[direction]
 
-def bumpRightMovingNegX():
-    #the cybot hit an object with the left bump sensor 
-    global cyboty, cybotx, x_values_short, y_values_short
-    #Need to recieve the distance traveled from the cybot in order to pinpoint object location ONLY NEED X DIRECTION
-    #line = cybot.readline().decode().strip() 
-     # Remove specific unwanted characters  
-    #clean_line = re.sub(r'[\x00]', '', line) 
-    #Object is right to the left of the cybot 
-    #add values to the array
-    x_values_short = np.append(x_values_short, cybotx)
-    y_values_short = np.append(y_values_short, cyboty)
-    #update cybot location
-    cyboty += 0.25 #FIXME should be value the cybot moves to the left to avoid an object
-    update_plot()
-    #Now cybot will scan to the left to see if it is an ideal move path???
-    # FIXME 
+def turnedCounterClockwise():
+    global direction
+    direction ={
+                "north" : "west",
+                "west" : "south",
+                "south" : "east",
+                "east" : "north",
+            }[direction]
 
 def find_bathroom():
     # this function should move the bot from the bottom left to the bottom right 
     send_message = "1\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
     time.sleep(0.5)
-    print("sent message: " + send_message) 
+    #print("sent message: " + send_message) 
     line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
     clean_line = re.sub(r'[\x00]', '', line)
-    print("Received message " + clean_line + "\n") 
+    #print("Received message " + clean_line + "\n") 
     progress = 'no'
+    movement = {
+        "north" : (0, -0.5),
+        "west" : (0.5, 0),
+        "east" : (-0.5, 0),
+        "south" : (0, 0.5)
+    }
     while 'done' not in progress:
-        global cybotx, cyboty
-        print("In Loop Received message " + clean_line + "\n")
+        global cybotx, cyboty, direction
+        #print("In Loop Received message " + clean_line + "\n")
         #Check if a bump occured 
         if 'bump right' in clean_line:
-            bumpRightMovingPosX()
-        if 'bump left' in clean_line:
-            bumpLeftMovingPosX()
-        if 'scanning' in clean_line:
-            takingScanData()
-            update_plot()
-        if 'counterclockwise' in clean_line:
-            cyboty += .30
-            update_plot()
-        if 'clockwise' in clean_line:
-            cyboty -= .30
-            update_plot()
-        if cybotx >= 3.40:
-            #FIXME is the y value less than 61 cm
-            progress = 'done'
-            send_message = "1\n"  
-            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-        if 'moved' in clean_line:
-            print("Adding Values\n")
-            cybotx += 0.52
-            update_plot()
-            time.sleep(0.5)
+            bumpRight()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'bump left' in clean_line:
+            bumpLeft()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'scanning' in clean_line:
+            takingScanData()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'counterclockwise' in clean_line:
+            turnedCounterClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'clockwise' in clean_line:
+            turnedClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'moved' in clean_line:
+            data = clean_line.split() # splits the line based on white space
+            print("Received data:", data)  # Debug print
+            dist = float(data[1])/1000
+            #find which direction we are currently pointing
+            match direction:
+                case "north":
+                    cyboty -= dist
+                case "south":
+                    cyboty += dist
+                case "east":
+                    cybotx -= dist
+                case "west":
+                    cybotx += dist
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        if cybotx >= 3.65:
+            if cyboty <= .61 and 'west' in direction:
+                progress = 'done'
+                send_message = "1\n"  
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cyboty <= .61 and 'west' not in direction:
+                match direction:
+                    case "north":
+                        #turn 1 CCW
+                        send_message = "left\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "south":
+                        #turn 1 CW
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "east":
+                        #turn 2 CW
+                        send_message = "2\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cyboty >= .61 and 'north' in direction:
+                #Just Drive forward
+                send_message = "0\n"
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cyboty >= .61 and 'north' not in direction:
+                match direction:
+                    case "south":
+                        #turn  2 CW
+                        send_message = "2\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "west":
+                        #turn 1 CW
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "east":
+                        #turn 1 CCW
+                        send_message = "left\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        print("X: " + str(cybotx) + " Y: " + str(cyboty) + "Dir: " + direction)
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
@@ -511,31 +599,72 @@ def find_bathroom():
 
 def find_kitchen_step1():
     #Move across near the bedroom
-    global cybotx, cyboty
-    cybotx = 3.40
-    cyboty = 0.35
     line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
     clean_line = re.sub(r'[\x00]', '', line)
     progress = 'no'
     while 'done' not in progress:
+        global cybotx, cyboty, direction
         #Check if a bump occured 
         if 'bump right' in clean_line:
-            bumpRightMovingNegX() 
-        if 'bump left' in clean_line:
-            bumpLeftMovingNegX()
-        if 'moved' in clean_line:
-            print("Adding Values\n")
-            cybotx -= 0.52
+            bumpRight()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'bump left' in clean_line:
+            bumpLeft()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'scanning' in clean_line:
+            takingScanData()
             update_plot()
-            time.sleep(0.5)
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'counterclockwise' in clean_line:
+            turnedCounterClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'clockwise' in clean_line:
+            turnedClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'moved' in clean_line:
+            data = clean_line.split() # splits the line based on white space
+            print("Received data:", data)  # Debug print
+            dist = float(data[1])/1000
+            #find which direction we are currently pointing
+            match direction:
+                case "north":
+                    cyboty -= dist
+                case "south":
+                    cyboty += dist
+                case "east":
+                    cybotx -= dist
+                case "west":
+                    cybotx += dist
+            update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         if cybotx <= 0.90:
-            send_message = "1\n"  
-            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-            progress = 'done'
-        
+            if 'east' in direction:
+                send_message = "1\n"  
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                progress = 'done'
+            else:
+                match direction:
+                    case "north":
+                        #turn 1 CW
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "west":
+                        #turn 2 CW
+                        send_message = "2\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "south":
+                        #turn 1 CCW
+                        send_message = "left\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         update_plot()
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
@@ -545,6 +674,7 @@ def find_kitchen_step1():
 
 def find_kitchen_full():
     # this function should move the bot from the bottom right to the top left // Always Neg X dir????
+    setLoc() #FIXME SETS LOCATION TO SPEED TESTING
     send_message = "2\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
     time.sleep(0.5)
@@ -554,23 +684,85 @@ def find_kitchen_full():
     clean_line = re.sub(r'[\x00]', '', line)
     progress = 'no'
     while 'done' not in progress:
-        global cybotx, cyboty
+        global cybotx, cyboty, direction
         #Check if a bump occured 
         if 'bump right' in clean_line:
-            bumpRightMovingNegX() 
-        if 'bump left' in clean_line:
-            bumpLeftMovingNegX()
-        if 'moved' in clean_line:
-            print("Adding Values\n")
-            cyboty += 0.52
+            bumpRight()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'bump left' in clean_line:
+            bumpLeft()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'scanning' in clean_line:
+            takingScanData()
             update_plot()
-            time.sleep(0.5)
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'counterclockwise' in clean_line:
+            turnedCounterClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'clockwise' in clean_line:
+            turnedClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'moved' in clean_line:
+            data = clean_line.split() # splits the line based on white space
+            print("Received data:", data)  # Debug print
+            dist = float(data[1])/1000
+            #find which direction we are currently pointing
+            match direction:
+                case "north":
+                    cyboty -= dist
+                case "south":
+                    cyboty += dist
+                case "east":
+                    cybotx -= dist
+                case "west":
+                    cybotx += dist
+            update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         if cyboty >= 1.75:
-            progress = 'done'
-            send_message = "1\n"  
-            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            if cybotx > 0.75 and 'east' in direction:
+                #drive forward
+                send_message = "0\n"  
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cybotx > 0.75 and 'east' not in direction:
+                match direction:
+                    case "north":
+                        #turn 1 CW
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "west":
+                        #turn 2 CW
+                        send_message = "2\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "south":
+                        #turn 1 CCW
+                        send_message = "left\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cybotx <= 0.75 and 'south' in direction:
+                progress = 'done'
+                send_message = "1\n"  
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cybotx <= 0.75 and 'south' not in direction:
+                match direction:
+                    case "north":
+                        #turn 2 CW
+                        send_message = "2\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "west":
+                        #turn 1 CCW
+                        send_message = "left\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "east":
+                        #turn 1 CW
+                        send_message = "right\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         update_plot()
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
@@ -590,25 +782,54 @@ def find_livingRoom():
     print("Received message " + clean_line + "\n") 
     progress = 'no'
     while 'done' not in progress:
-        global cybotx, cyboty
-        print("In Loop Received message " + clean_line + "\n")
+        global cybotx, cyboty, direction
         #Check if a bump occured 
         if 'bump right' in clean_line:
-            bumpRightMovingPosX()
-        if 'bump left' in clean_line:
-            bumpLeftMovingPosX()
-        if cybotx >= 3.40:
-            #FIXME is the y value less than 61 cm
-            progress = 'done'
-            send_message = "1\n"  
-            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-        if 'moved' in clean_line:
-            print("Adding Values\n")
-            cybotx += 0.52
-            update_plot()
-            time.sleep(0.5)
+            bumpRight()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'bump left' in clean_line:
+            bumpLeft()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'scanning' in clean_line:
+            takingScanData()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'counterclockwise' in clean_line:
+            turnedCounterClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'clockwise' in clean_line:
+            turnedClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'moved' in clean_line:
+            data = clean_line.split() # splits the line based on white space
+            print("Received data:", data)  # Debug print
+            dist = float(data[1])/1000
+            #find which direction we are currently pointing
+            match direction:
+                case "north":
+                    cyboty -= dist
+                case "south":
+                    cyboty += dist
+                case "east":
+                    cybotx -= dist
+                case "west":
+                    cybotx += dist
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        if cybotx >= 3.62:
+            if cyboty >= 1.75 and 'west' in direction:
+                progress = 'done'
+                send_message = "1\n"  
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            #FIXME Finish this
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
@@ -627,25 +848,53 @@ def find_exit():
     print("Received message " + clean_line + "\n") 
     progress = 'no'
     while 'done' not in progress:
-        global cybotx, cyboty
-        print("In Loop Received message " + clean_line + "\n")
+        global cybotx, cyboty, direction
         #Check if a bump occured 
         if 'bump right' in clean_line:
-            bumpRightMovingPosX()
-        if 'bump left' in clean_line:
-            bumpLeftMovingPosX()
-        if cyboty <= 1.35:
-            #FIXME is the y value less than 61 cm
+            bumpRight()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'bump left' in clean_line:
+            bumpLeft()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'scanning' in clean_line:
+            takingScanData()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'counterclockwise' in clean_line:
+            turnedCounterClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'clockwise' in clean_line:
+            turnedClockwise()
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'moved' in clean_line:
+            data = clean_line.split() # splits the line based on white space
+            print("Received data:", data)  # Debug print
+            dist = float(data[1])/1000
+            #find which direction we are currently pointing
+            match direction:
+                case "north":
+                    cyboty -= dist
+                case "south":
+                    cyboty += dist
+                case "east":
+                    cybotx -= dist
+                case "west":
+                    cybotx += dist
+            update_plot()
+            send_message = "0\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        if cyboty >= 1.0 and cyboty <= 1.75:
             progress = 'done'
             send_message = "1\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-        if 'moved' in clean_line:
-            print("Adding Values\n")
-            cyboty -= 0.52
-            update_plot()
-            time.sleep(0.5)
-            send_message = "0\n"  
-            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            #FIXME Finish this
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
