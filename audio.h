@@ -14,7 +14,11 @@
 #include "driverlib/interrupt.h"
 
 void Audio_Init(void);
-void Audio_SendCommand(uint8_t command);
+void Audio_Play(void);
+void Audio_Pause(void);
+void Audio_Stop(void);
+void Audio_Next(void);
+void Audio_Specified_Song(uint8_t SNH, uint8_t SNL);
 
 
 #endif /* AUDIO_H_ */
