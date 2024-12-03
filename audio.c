@@ -34,7 +34,7 @@ void Audio_Init(void) {
 
 
 
-    Audio_Play();  // Example command to play the first audio file; replace with actual play command as needed
+    //Audio_Play();  // Example command to play the first audio file; replace with actual play command as needed
 }
 
 // function to send command to DY-SV5W module?
@@ -139,40 +139,46 @@ void Audio_Next(void) {
 
 void Audio_Specified_Song(uint8_t SNH, uint8_t SNL) {
 
-    uint8_t check_sum = (0xAA + 0x07 +  0x02+ SNH + SNL); //check bit calculation
+    uint8_t check_sum = (0xAA + 0x07 + 0x02 + SNH + SNL) & 0xFF;  // Mask to retain low 8 bits
 
 
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
     UART3_DR_R = 0xAA;
+
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
     UART3_DR_R = 0x07;
+
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
 
     UART3_DR_R = 0x02;
+
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
 
-    UART3_DR_R = SNH;
+    UART3_DR_R = SNH; //I DONT KNOW WHY BUT ALWAYS HAVE THIS VALUE OF 0x00 and just enter in the SONG MACRO in the 2nd Paramter. It Just works.
+
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
     UART3_DR_R = SNL;
+
     while ((UART3_FR_R & 0x20) != 0);{
         // Wait if TX buffer is full (p. 904)
     }
     UART3_DR_R = check_sum;
+
         while ((UART3_FR_R & 0x20) != 0);{
             // Wait if TX buffer is full (p. 904)
 
 
-    Audio_Play();
+    //Audio_Play();
 
     }
 }
