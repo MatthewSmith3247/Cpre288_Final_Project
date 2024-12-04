@@ -3,11 +3,11 @@ import tkinter
 
 #USE PIP INSTALL in the Terminal line
 
-#Had to install SpeechRecognition and pyaudio for listener
+#Had to pip install SpeechRecognition and pyaudio for listener
 import speech_recognition as sr 
 
 #for speaker install pyttsx3
-import pyttsx3
+#import pyttsx3
 
 #For Socket Connection
 import time
@@ -139,15 +139,15 @@ def analyze_command():
 
 def respond():
     global text_to_speak
-    engine = pyttsx3.init()
+    #engine = pyttsx3.init()
     #set the rate it talks in words per minute
-    engine.setProperty('rate', 150)
-    voices = engine.getProperty('voices')
+    #engine.setProperty('rate', 150)
+    #voices = engine.getProperty('voices')
     #change voice to index 1 for female adn 0 for male
-    engine.setProperty('voice', voices[1].id)
-    engine.setProperty('volume', 3.0)
-    engine.say(text_to_speak)
-    engine.runAndWait()
+    #engine.setProperty('voice', voices[1].id)
+    #engine.setProperty('volume', 3.0)
+    #engine.say(text_to_speak)
+    #engine.runAndWait()
 
 #---------------------------------PLOT in POLAR
 def plot():
@@ -568,6 +568,27 @@ def find_bathroom():
             update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        elif 'Cliff' in clean_line:
+            #the cliff sensor was triggered 
+            match direction:
+                case "north":
+                    #we want the cybot to turn CCW
+                    send_message = "left\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "south":
+                    #WTF turn CW I guess
+                    send_message = "right\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "east":
+                    #Turn 2 CCW
+                    send_message = "2\n"
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "west":
+                    #Turn CW
+                    send_message = "right\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            update_plot()
+        
         if cybotx >= 3.65:
             if cyboty <= .61 and 'west' in direction:
                 progress = 'done'
