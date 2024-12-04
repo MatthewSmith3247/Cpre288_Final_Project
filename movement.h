@@ -11,8 +11,8 @@
 
 void moveForward(oi_t*sensor, int centimeters);
 void moveBackward(oi_t*sensor, int centimeters);
-void turnClockwise(oi_t *sensor, int degrees);
-void turnCounterClockwise(oi_t *sensor, int degrees);
+void turnClockwise(oi_t *sensor, float degrees);
+void turnCounterClockwise(oi_t *sensor, float degrees);
 
 
 #endif /* MOVEMENT_H_ */
