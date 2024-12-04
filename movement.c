@@ -2,7 +2,7 @@
 #include "uart.h"
 
 
-void turnCounterClockwise(oi_t *sensor, int degrees)
+void turnCounterClockwise(oi_t *sensor, float degrees)
 {
 double sum = 0;
 oi_setWheels(50, -50); //right wheel | left wheel
@@ -16,7 +16,7 @@ cybot_send_string("counterclockwise\n");
 oi_setWheels(0, 0); //stop
 }
 
-void turnClockwise(oi_t *sensor, int degrees)
+void turnClockwise(oi_t *sensor, float degrees)
 {
 double sum = 0;
 oi_setWheels(-50, 50); //right wheel | left wheel
@@ -32,7 +32,7 @@ oi_setWheels(0, 0); //stop
 
 void moveForward(oi_t *sensor, int centimeters) {
     double sum = 0;
-    oi_setWheels(50, 50);
+    oi_setWheels(100, 100); //CHANGE DURING TESTING
     char sendData[50];
     while (sum < centimeters)
     {
@@ -47,12 +47,14 @@ void moveForward(oi_t *sensor, int centimeters) {
 void moveBackward(oi_t *sensor, int centimeters) {
     double sum = 0;
     oi_setWheels(-50, -50);
+    char sendData[50];
     while (sum < centimeters)
     {
         oi_update(sensor);
         sum -= sensor->distance;
     }
-
+    sprintf(sendData, "moved\t%d\n", -1 * (centimeters)); //POSSIBLE CHANGE
+    cybot_send_string(sendData);
     oi_setWheels(0, 0); // stop
 }
 
