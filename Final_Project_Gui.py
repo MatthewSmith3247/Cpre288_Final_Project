@@ -117,6 +117,22 @@ def analyze_command():
         text_to_speak = "Scanning"
         scan()
 
+    elif ' bathroom' in word_said:
+        text_to_speak = "Finding Bathroom"
+        find_bathroom()
+    
+    elif ' kitchen' in word_said:
+        text_to_speak = "Finding Kitchen"
+        find_kitchen_full()
+
+    elif ' living room' in word_said:
+        text_to_speak = "Finding Living Room"
+        find_livingRoom()
+
+    elif ' ready' or ' exit' in word_said:
+        text_to_speak = "Finding the exit"
+        find_exit()
+
     elif ' stop' or ' quit' or ' no' in word_said:
         text_to_speak = "Stopping"
         stop()
@@ -407,15 +423,15 @@ def takingScanData():
         try:
             global cybotx, cyboty, x_values, y_values
             data = clean_line.split()
-            distance = float(data[0])
+            distance = float(data[0])/1000
             angle = int(data[1])
             count += 1
             print("Distance: " + str(distance) + " Angle: " + str(angle))
             if distance < 50 and angle > 90 and angle < 170:
                 #Use those values to find the coordinates of the new object
                 angle -= 90
-                x_coord = cybotx + (distance*np.cos(np.deg2rad(angle)))/1000
-                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/1000
+                x_coord = cybotx + (distance*np.cos(np.deg2rad(angle)))
+                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))
                 print("X Coord: " + str(x_coord) + " Y Coord: " + str(y_coord))
                 #append to array
                 x_values = np.append(x_values, x_coord)
@@ -423,8 +439,8 @@ def takingScanData():
             elif distance < 50 and angle >= 20 and angle <= 90:
                 #Use those values to find the coordinates of the new object
                 angle = 90 - angle
-                x_coord = cybotx+ (distance*np.cos(np.deg2rad(angle)))/1000
-                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))/1000
+                x_coord = cybotx+ (distance*np.cos(np.deg2rad(angle)))
+                y_coord = cyboty + (distance*np.sin(np.deg2rad(angle)))
                 print("X Coord: " + str(x_coord) + " Y Coord: " + str(y_coord))
                 #append to array
                 x_values = np.append(x_values, x_coord)
@@ -673,11 +689,11 @@ def find_kitchen_step1():
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
 
 def find_kitchen_full():
-    # this function should move the bot from the bottom right to the top left // Always Neg X dir????
-    setLoc() #FIXME SETS LOCATION TO SPEED TESTING
+    # this function should move the bot from the bottom right to the top left 
     send_message = "2\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
     time.sleep(0.5)
+    #I split it into 2 steps to make the code more readable, step 1 is a different function
     find_kitchen_step1()
     line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
