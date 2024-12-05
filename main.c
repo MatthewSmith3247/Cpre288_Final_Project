@@ -35,6 +35,7 @@ int main(void)
     uart_init(115200);
     ping_init();
     servo_init();
+    Audio_Init();
     connectToGui();
     manualDriver(sensorData);
 
