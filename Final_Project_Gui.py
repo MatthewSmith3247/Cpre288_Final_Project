@@ -67,8 +67,9 @@ print("Got a message from server: " + rx_message.decode() + "\n") # Convert mess
 
 #---------------------------------BUTTON  SET UP
 #variables for later
-global word_said, text_to_speak, jokeCount
+global word_said, text_to_speak, jokeCount, manual
 jokeCount = 0
+manual = 0
 word_said = ""
 text_to_speak = " Hello"
 
@@ -607,7 +608,7 @@ def find_bathroom():
         "south" : (0, 0.5)
     }
     while 'done' not in progress:
-        global cybotx, cyboty, direction, jokeCount
+        global cybotx, cyboty, direction, jokeCount, manual
         #print("In Loop Received message " + clean_line + "\n")
         #Check if a bump occured 
         if 'bump right' in clean_line:
@@ -679,6 +680,7 @@ def find_bathroom():
             update_plot()
         elif 'stop' in clean_line:
             eStop = 1
+            manual = 1
             break
         if cybotx >= 3.65:
             if cyboty <= .61 and 'west' in direction:
@@ -728,12 +730,12 @@ def find_bathroom():
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
     #update_plot()
-    if eStop == 1:
+    if eStop == 1 or manual == 1:
         send_message = "q\n"  
         cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server 
         manual()
     #else:
-    #    send_message = "1\n"  
+    #    send_message = "g\n"    
     #    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server 
 
 def find_kitchen_step1():
@@ -808,7 +810,7 @@ def find_kitchen_step1():
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
-    send_message = "1\n"  
+    send_message = "g\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
 
 def find_kitchen_full():
