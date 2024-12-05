@@ -392,6 +392,8 @@ def backward():
     update_plot()   
 
 def stop():
+    global eStop
+    eStop = 1
     send_message = "q\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
     line = cybot.readline().decode().strip() 
@@ -658,22 +660,26 @@ def find_bathroom():
             print("A CLIFF")
             match direction:
                 case "north":
-                    #we want the cybot to turn CCW
+                    #we want the cybot to turn CCW, must be at bottom border
+                    cyboty = 0.10
                     send_message = "left\n"  
                     jokeCount += 1
                     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
                 case "south":
                     #WTF turn CW I guess
+                    cyboty = 4.15
                     jokeCount += 2
                     send_message = "right\n"  
                     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
                 case "east":
                     #Turn 2 CCW
+                    cybotx = 0.1
                     jokeCount += 1
                     send_message = "2\n"
                     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
                 case "west":
                     #Turn CW
+                    cyboty = 4.15
                     jokeCount += 1
                     send_message = "right\n"  
                     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
@@ -722,6 +728,8 @@ def find_bathroom():
                         #turn 1 CCW
                         send_message = "left\n"  
                         cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        if eStop == 1:
+            break
         if jokeCount == 8:
             send_message = "j\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server 
