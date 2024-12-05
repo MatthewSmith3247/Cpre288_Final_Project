@@ -273,15 +273,14 @@ void objectAvoid(oi_t *sensor)
     }
     else if (object_count == 2)
     {
-        //If there is one object, turn away from the object
         //they could both be less than 90
         if ((midpoint_angle[0] < 90 && midpoint_angle[0] >= 30)
                 && (midpoint_angle[1] < 90 && midpoint_angle[1] >= 30))
         {
             //Find the real distances from the cybot in the tangential direction
-            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
-            objOppDist[1] = object_distance[1]* sin((midpoint_angle[1] - 90) * M_PI / 180);
-
+            objOppDist[0] = object_distance[0]* sin((90 - midpoint_angle[0]) * M_PI / 180);
+            objOppDist[1] = object_distance[1]* sin((90 - midpoint_angle[1]) * M_PI / 180);
+            if(objOppDist[0] <= 8 || objOppDist[1] <= 8){
             //turn counterclockwise, then scan
             turnCounterClockwise(sensor, 86.5);
             fastScan(0, 180);
@@ -298,11 +297,16 @@ void objectAvoid(oi_t *sensor)
             }
             //turn back
             turnClockwise(sensor, 88.5);
+            }
         }
         //they could both be greater than 90
         else if ((midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90)
                 && (midpoint_angle[1] <= 150 && midpoint_angle[1] >= 90))
         {
+         //Find the real distances from the cybot in the tangential direction
+            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
+            objOppDist[1] = object_distance[1]* sin((midpoint_angle[1] - 90) * M_PI / 180); 
+         if(objOppDist[0] <= 8 || objOppDist[1] <= 8){
             //turn clockwise, then scan
             turnClockwise(sensor, 88.5);
             fastScan(0, 180);
@@ -319,8 +323,9 @@ void objectAvoid(oi_t *sensor)
             }
             //turn back
             turnCounterClockwise(sensor, 86.5);
+         }
         }
-        //If they ain't both on one side pick the one that is closer to turn away from? Deal with the second later
+        //If they ain't both on one side pick the one that is closer/in the way to turn away from? Deal with the second later
         else if (object_distance[0] < object_distance[1])
         {
             //turn away from object[0]
