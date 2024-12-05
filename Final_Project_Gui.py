@@ -418,7 +418,7 @@ def takingScanData():
      # Remove specific unwanted characters  
     clean_line = re.sub(r'[\x00]', '', line)
     print("Received message " + clean_line + "\n") 
-    plot()
+    #plot()
     while 'finished' not in clean_line:
         #Must be sending data on an object in format : Distance \t angle
         #split data from line into variables
