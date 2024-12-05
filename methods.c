@@ -248,7 +248,7 @@ void objectAvoid(oi_t *sensor)
         }
         else if (midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90) //CHANGE DURING TESTING
         {
-            objOppDist[0] = object_distance[0] * sin(90 - (midpoint_angle[0]) * M_PI / 180);
+            objOppDist[0] = object_distance[0] * sin((90 - midpoint_angle[0]) * M_PI / 180);
             if (objOppDist[0] <= 8)
             {
                 //turn clockwise, then scan
