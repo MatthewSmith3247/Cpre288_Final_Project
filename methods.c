@@ -96,18 +96,20 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
     if (sensor->bumpLeft == 1)
     {
         cybot_send_string("bump left\n");
+        Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
         turnClockwise(sensor, 88.5); //CHANGE BASED ON TESTING FIXME  //88
         moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING
-        turnCounterClockwise(sensor, 87.75); //CHANGE BASED ON TESTING  //88
+        turnCounterClockwise(sensor, 86.5); //CHANGE BASED ON TESTING  //88
         moveForwardDetect(sensor, (remainingDistance + 100));
     }
 
     else if (sensor->bumpRight == 1)
     {
         cybot_send_string("bump right\n");
+        Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
-        turnCounterClockwise(sensor, 87.75); //88
+        turnCounterClockwise(sensor, 86.5); //88
         moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING FIXME
         turnClockwise(sensor, 88.5); //CHANGE BASED ON TESTING  //88
         moveForwardDetect(sensor, (remainingDistance + 100));
@@ -116,7 +118,12 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
             || sensor->cliffFrontLeftSignal >= 2500
             || sensor->cliffFrontLeftSignal <= 200)
     {
-        moveBackward(sensor, 50); //CHANGE VALUE
+        if(sensor->cliffLeftSignal >= 2500 || sensor->cliffFrontLeftSignal >= 2500){
+            Audio_Specified_Song(0x00, Black_hole);
+        }
+        if(sensor->cliffLeftSignal >= 200 || sensor->cliffFrontLeftSignal >= 200){
+            Audio_Specified_Song(0x00, wall);
+        }
         cybot_send_string("Cliff Left Signal\n");
         buffer = uart_receive();
         j = 0;
@@ -127,6 +134,7 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
             j++;
             buffer = uart_receive();
         }
+        moveBackward(sensor, 50); //CHANGE VALUE CHANGE PLACE
         lcd_printf("Note: %s", note);
 
         if (note[0] == '2')
@@ -138,7 +146,7 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor, 87.75); //FIXME
+            turnCounterClockwise(sensor, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -151,11 +159,17 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
             || sensor->cliffFrontRightSignal >= 2500
             || sensor->cliffFrontRightSignal <= 200)
     {
+        if(sensor->cliffRightSignal >= 2500 || sensor->cliffFrontRightSignal >= 2500){
+                    Audio_Specified_Song(0x00, Black_hole);
+                }
+        if(sensor->cliffRightSignal >= 200 || sensor->cliffFrontRightSignal >= 200){
+                    Audio_Specified_Song(0x00, wall);
+                }
         cybot_send_string("Cliff Right Signal\n");
-        moveBackward(sensor, 50);
         char buffer;
         int j;
         char note[10];
+        buffer = uart_receive();
         while (buffer != '\n')
         {
             note[j] = buffer;
@@ -163,6 +177,7 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
             j++;
             buffer = uart_receive();
         }
+        moveBackward(sensor, 50);
         lcd_printf("Note: %s", note);
 
         if (note[0] == '2')
@@ -174,7 +189,7 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor, 87.75); //FIXME
+            turnCounterClockwise(sensor, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -187,7 +202,8 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
 
 int objectCollision()
 {
-    int isObject = 0;
+    //int isObject = 0;
+
 //RETURN 1 FOR TRUE 0 FOR FALSE
 //this should be used for detecting the edge boundary, hole and small objects and return what object it ran into.
 
@@ -197,50 +213,61 @@ int objectCollision()
 
 void objectAvoid(oi_t *sensor)
 {
+    float objOppDist[5];
 //This Function turns the robot to avoid obstacles It uses CurrPath to decide which way it should be turning
 //Should turn the way there are less objects
     if (object_count == 1)
     {
         //If there is one object, turn away from the object, if it is in the range of 30 - 150 deg
-        if (midpoint_angle[0] <= 90 && midpoint_angle[0] >= 30
-                && object_distance[0] < 55) //CHANGE DURING TESTING
+        //find distance from object to determine necessity
+
+        if (midpoint_angle[0] <= 90 && midpoint_angle[0] >= 10)
         {
+            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
+            //See if the object is going to be in the way or not. If it is greater than 8, it is not a problem
+            if(objOppDist[0] <= 8)
+            {
             //turn counterclockwise, then scan
-            turnCounterClockwise(sensor, 87.75);
+            turnCounterClockwise(sensor, 86.5);
             fastScan(0, 180);
             //check if there was an object to avoid
             if (object_count >= 1)
             {
                 //avoid the object
-                secondObject(sensor);
+                //secondObject(sensor);
             }
             //try to move forward
             else
             {
-                moveForward(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
             }
             //turn back
             turnClockwise(sensor, 88.5);
         }
-        else if (midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90
-                && object_distance[0] < 55) //CHANGE DURING TESTING
+
+        }
+        else if (midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90) //CHANGE DURING TESTING
         {
-            //turn clockwise, then scan
-            turnClockwise(sensor, 88.5);
-            fastScan(0, 180);
-            //check if there was an object to avoid
-            if (object_count >= 1)
+            objOppDist[0] = object_distance[0] * sin(90 - (midpoint_angle[0]) * M_PI / 180);
+            if (objOppDist[0] <= 8)
             {
-                //avoid the object
-                secondObject(sensor);
+                //turn clockwise, then scan
+                turnClockwise(sensor, 88.5);
+                fastScan(0, 180);
+                //check if there was an object to avoid
+                if (object_count >= 1)
+                {
+                    //avoid the object
+                    //secondObject(sensor);
+                }
+                //try to move forward
+                else
+                {
+                    moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                }
+                //turn back
+                turnCounterClockwise(sensor, 86.5);
             }
-            //try to move forward
-            else
-            {
-                moveForward(sensor, 300); //CHANGE BASED ON TESTING FIXME;
-            }
-            //turn back
-            turnCounterClockwise(sensor, 87.75);
         }
 
     }
@@ -251,8 +278,12 @@ void objectAvoid(oi_t *sensor)
         if ((midpoint_angle[0] < 90 && midpoint_angle[0] >= 30)
                 && (midpoint_angle[1] < 90 && midpoint_angle[1] >= 30))
         {
+            //Find the real distances from the cybot in the tangential direction
+            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
+            objOppDist[1] = object_distance[1]* sin((midpoint_angle[1] - 90) * M_PI / 180);
+
             //turn counterclockwise, then scan
-            turnCounterClockwise(sensor, 87.75);
+            turnCounterClockwise(sensor, 86.5);
             fastScan(0, 180);
             //check if there was an object to avoid
             if (object_count >= 1)
@@ -263,7 +294,7 @@ void objectAvoid(oi_t *sensor)
             //try to move forward
             else
             {
-                moveForward(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
             }
             //turn back
             turnClockwise(sensor, 88.5);
@@ -284,10 +315,10 @@ void objectAvoid(oi_t *sensor)
             //try to move forward
             else
             {
-                moveForward(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
             }
             //turn back
-            turnCounterClockwise(sensor, 87.75);
+            turnCounterClockwise(sensor, 86.5);
         }
         //If they ain't both on one side pick the one that is closer to turn away from? Deal with the second later
         else if (object_distance[0] < object_distance[1])
@@ -376,12 +407,12 @@ void secondObject(oi_t *sensor)
             if (object_distance[0] > 55)
             {
                 //its far enough
-                moveForward(sensor, 300);
+                moveForwardDetect(sensor, 300);
             }
             else if (object_distance[0] >= 30)
             {
                 //try to move forward
-                moveForward(sensor, object_distance[0] - 25);
+                moveForwardDetect(sensor, object_distance[0] - 25);
             }
             else
             {
@@ -418,6 +449,7 @@ int fastScan(int startDeg, int endDeg)
     int j;
     int scanned_degree_vals[4];
     int alreadyRec = 0;
+    int pingDist;
 
 // Variables for object count FIXME move to correct scope (m)
 
@@ -507,6 +539,8 @@ int fastScan(int startDeg, int endDeg)
             scanned_distance_vals_IR[1] = (scanned_distance_vals_IR[0]
                     + scanned_distance_vals_IR[2]) / 2;
         }
+        // Take PING to check distance
+        pingDist = ping_read();
 
         // Find Objects and widths
         if (object_count < 5 && curr_degree > 4)
@@ -514,7 +548,7 @@ int fastScan(int startDeg, int endDeg)
             delta_distance = scanned_distance_vals_IR[1]
                     - scanned_distance_vals_IR[0];
             //alreadyRec is an int for seeing if you are already recording, to prevent two objects at the same degree
-            if (delta_distance <= -30 && alreadyRec == 0)
+            if (delta_distance <= -30 && alreadyRec == 0 && pingDist < 75)
             { // falling edge, if there is a change in distance that is drastic
                 alreadyRec = 1;
                 initial_angle[object_count] = scanned_degree_vals[0]; // take initial angle measurement
@@ -543,7 +577,7 @@ int fastScan(int startDeg, int endDeg)
         //send data to UART FIXME Debugging
         sprintf(scanned_data, "%d\t\t%.0f\t\n\r", scanned_degree_vals[0],
                 scanned_distance_vals_IR[0]);
-        //cybot_send_string(scanned_data);
+        cybot_send_string(scanned_data);
 
         // rotate values to the left 1 spot in the array
         //Ping
@@ -564,10 +598,10 @@ int fastScan(int startDeg, int endDeg)
 // send last 2 values FIXME Debugging
     sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[1],
             scanned_distance_vals_IR[1]);
-//cybot_send_string(scanned_data);
+cybot_send_string(scanned_data);
     sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[2],
             scanned_distance_vals_IR[2]);
-//cybot_send_string(scanned_data);
+cybot_send_string(scanned_data);
 
 // Find Distances of Objects and store the values
     for (i = 0; i < object_count; i++)
@@ -614,233 +648,18 @@ int fastScan(int startDeg, int endDeg)
     return 1;
 }
 
-int fullScan(int startDeg, int endDeg)
-{
-//scan variable declaration
-    char scanned_data[45];
-    float scanned_distance_vals_PING[4];
-    float scanned_distance_vals_IR[4];
-    float val[5], temp;
-    int j;
-    int scanned_degree_vals[4], midpoint_angle;
-    int alreadyRec = 0;
-    float min;
-    int min_inital_angle, min_final_angle;
-
-// Variables for object count FIXME move to correct scope (m)
-    int object_count = 0;
-    float object_distance[5], delta_distance; // lets try not to hard code a finite amount of these objects to make future labs easier
-    int initial_angle[5]; // lets try not to hard code a finite amount of these objects to make future labs easier
-    int final_angle[5];
-    float initial_dist[5];
-    float final_dist[5];
-    float linear_distance[5];
-// cyBOT_Scan_t collected_data;
-
-//initialize for IR
-
-//char buffer[10];
-    object_count = 0;
-    alreadyRec = 0; // reset to 0 before scan
-    oi_setWheels(0, 0);
-    int i = 2;
-    int curr_degree = startDeg;
-//cybotSendString("Degrees\t\tDistance IR\n");
-    if (curr_degree == 0)
-    {
-        servo_move(0);
-        timer_waitMillis(300); // FIX ME
-        // Hard set point 1 of scan
-        servo_move(0);
-        scanned_distance_vals_IR[0] = 250; // find the distance away from IR sensor at given degree for IR and translate it
-        scanned_degree_vals[0] = 0; // take account for what degree you are located at
-        servo_move(2);
-        //hard set point 2 of array
-        scanned_distance_vals_IR[1] = 250; // find the distance away from IR sensor at given degree for IR and translate it
-        scanned_degree_vals[1] = 2; // take account for what degree you are located at
-        curr_degree = 4;
-    }
-    else
-    {
-        servo_move(startDeg);
-        timer_waitMillis(300);
-        // Hard set point 1 of scan
-        servo_move(startDeg);
-        scanned_distance_vals_IR[0] = clean_IR_val(); // find the distance away from IR sensor at given degree for IR and translate it
-        scanned_degree_vals[0] = startDeg; // take account for what degree you are located at
-        servo_move((startDeg + 2));
-        //hard set point 2 of array
-        scanned_distance_vals_IR[1] = clean_IR_val(); // find the distance away from IR sensor at given degree for IR and translate it
-        scanned_degree_vals[1] = startDeg + 2; // take account for what degree you are located at
-        curr_degree = startDeg + 4;
-
-    }
-// collect data
-    while (curr_degree <= endDeg)
-    {
-        servo_move(curr_degree); // scanning
-        // take in all values for current scan
-        scanned_distance_vals_PING[2] = ping_read(); // find the distance away from IR sensor at given degree for PING
-        // take in 3 values at current angle and translate to cm
-        timer_waitMillis(10);
-        for (i = 0; i < 5; i++)
-        {
-            val[i] = clean_IR_val();
-            timer_waitMillis(10);
-        }
-        // bubble sort to get outliers at index 0 and index 4
-        for (j = 0; j < 3; j++)
-        {
-            for (i = 0; i < 4; i++)
-            {
-                if (val[i] > val[i + 1])
-                {
-                    temp = val[i];
-                    val[i] = val[i + 1];
-                    val[i + 1] = temp;
-                }
-
-            }
-        }
-        // average the three values and store
-        scanned_distance_vals_IR[2] = (val[1] + val[2] + val[3]) / 3;
-
-        if (scanned_distance_vals_IR[2] > 100)
-        {
-            scanned_distance_vals_IR[2] = 250;
-        }
-
-        // take account for what degree you are located at
-        scanned_degree_vals[2] = curr_degree;
-
-        // clean middle piece of data i.e data in scanned_distance_vals[1]
-        //clean PING
-        //      if ( scanned_distance_vals_PING[0] < (scanned_distance_vals_PING[2] + 20) && scanned_distance_vals_PING[0] > (scanned_distance_vals_PING[2] - 20)){
-        //                  scanned_distance_vals_PING[1] = (scanned_distance_vals_PING[0] + scanned_distance_vals_PING[2]) / 2; // Matt is paranoid............
-        //      }
-        //Clean IR
-        if (scanned_distance_vals_IR[0] < (scanned_distance_vals_IR[2] + 20)
-                && scanned_distance_vals_IR[0]
-                        > (scanned_distance_vals_IR[2] - 20))
-        {
-            scanned_distance_vals_IR[1] = (scanned_distance_vals_IR[0]
-                    + scanned_distance_vals_IR[2]) / 2;
-        }
-
-        // Find Objects and widths
-        if (object_count < 5 && curr_degree > 4)
-        {
-            delta_distance = scanned_distance_vals_IR[1]
-                    - scanned_distance_vals_IR[0];
-            //alreadyRec is an int for seeing if you are already recording, to prevent two objects at the same degree
-            if (delta_distance <= -30 && alreadyRec == 0)
-            { // falling edge, if there is a change in distance that is drastic
-                alreadyRec = 1;
-                initial_angle[object_count] = scanned_degree_vals[0]; // take initial angle measurement
-                initial_dist[object_count] = scanned_distance_vals_IR[1]; //record that new radius away ///FIX ME CHANGED SCNDDIST_IR from 0 to 1
-
-            }
-            else if (delta_distance >= 30 && alreadyRec == 1)
-            { //rising edge, if there is a change in distance that is drastic
-                final_angle[object_count] = scanned_degree_vals[0]; // record the final angle of the object
-                final_dist[object_count] = scanned_distance_vals_IR[1];
-                if (final_angle[object_count] - initial_angle[object_count] <= 2
-                        || final_angle[object_count]
-                                - initial_angle[object_count] >= 75)
-                { ///FIX ME CHANGED 6 to 2 in angle count
-
-                }
-                else
-                {
-                    object_count++; // record new object
-                    alreadyRec = 0;
-                }
-
-            }
-        }
-
-        // rotate values to the left 1 spot in the array
-        //Ping
-        scanned_distance_vals_PING[0] = scanned_distance_vals_PING[1];
-        scanned_distance_vals_PING[1] = scanned_distance_vals_PING[2];
-        // IR
-        scanned_distance_vals_IR[0] = scanned_distance_vals_IR[1];
-        scanned_distance_vals_IR[1] = scanned_distance_vals_IR[2];
-        //Degrees
-        scanned_degree_vals[0] = scanned_degree_vals[1];
-        scanned_degree_vals[1] = scanned_degree_vals[2];
-
-        curr_degree = curr_degree + 2; //Increment to collect data every 2 degrees
-        timer_waitMillis(10);
-
-    }
-
-// PING to Center of Objects
-    for (i = 0; i < object_count; i++)
-    {
-        // Find midpoint of angles
-        midpoint_angle = (final_angle[i] - initial_angle[i]) / 2
-                + initial_angle[i];
-        // Take reading at midpoint
-        servo_move(midpoint_angle);
-        timer_waitMillis(1000);
-        servo_move(midpoint_angle);
-        // store PING value from reading
-        object_distance[i] = ping_read();
-        lcd_printf("%.0f", object_distance[i]);
-
-    }
-
-//LINEAR DIST
-    float delta_angle;
-    for (i = 0; i < object_count; i++)
-    {
-        delta_angle = (final_angle[i] - initial_angle[i]) / 2; //POSSIBLE FIXME
-        //other_angle = (180 - delta_angle)/2;
-        // linear_distance[i] = sqrt(pow(object_distance[i],2) + pow(object_distance[i],2) * object_distance[i] * object_distance[i] * cos(delta_angle));
-        //linear_distance[i] = sin(delta_angle*(M_PI/180)) * (object_distance[i] / sin(other_angle*(M_PI/180)));
-        linear_distance[i] = sqrt(
-                pow(object_distance[i], 2) + pow(object_distance[i], 2)
-                        - (2 * object_distance[i] * object_distance[i]
-                                * cos(delta_angle * (M_PI / 180))));
-        //linear_distance[i] = 2 * object_distance[i] * sin(delta_angle*(M_PI/180));
-    }
-
-// point sensor to smallest width object
-    min = linear_distance[0];
-    min_inital_angle = initial_angle[0];
-    min_final_angle = final_angle[0];
-
-    for (i = 0; i < object_count; i++)
-    {
-
-        if (linear_distance[i] < min)
-        {
-            min = linear_distance[i];
-            min_inital_angle = initial_angle[i];
-            min_final_angle = final_angle[i];
-        }
-    }
-
-    midpoint_angle = (min_final_angle - min_inital_angle) / 2
-            + min_inital_angle;
-
-    servo_move(midpoint_angle);
-
-    return midpoint_angle;
-}
 
 void find_bathroom(oi_t *sensor_data)
 {
     currPath = 1;
     hasTurned = 0;
-// find bathroom should move in a straight line across the bottom of the course
+    // find bathroom should move in a straight line across the bottom of the course
     char buffer;
     int j;
     char note[10];
     cybot_send_string("beginning\n");
     fastScan(0, 180);
-//check if there was an object to avoid
+    //check if there was an object to avoid
     if (object_count >= 1)
     {
         //avoid the object
@@ -852,12 +671,6 @@ void find_bathroom(oi_t *sensor_data)
         timer_waitMillis(10);
         //scan
         fastScan(0, 180);
-        //check if there was an object to avoid
-        if (object_count >= 1)
-        {
-            //avoid the object
-            objectAvoid(sensor_data);
-        }
         buffer = uart_receive();
         j = 0;
         while (buffer != '\n')
@@ -882,12 +695,25 @@ void find_bathroom(oi_t *sensor_data)
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 87.75); //FIXME
+            turnCounterClockwise(sensor_data, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
             turnClockwise(sensor_data, 88.5); //FIXME
+        }
+        else if(note[0] == 'q'){
+            cybot_send_string("stop\n");
+            break;
+        }
+        else if(note[0] == 'j'){
+            Audio_Specified_Song(0x00, Joke_1);
+        }
+        //check if there was an object to avoid
+        if (object_count >= 1)
+        {
+            //avoid the object
+            objectAvoid(sensor_data);
         }
     }
 }
@@ -901,8 +727,8 @@ void find_kitchen(oi_t *sensor_data)
     int j;
     char note[10];
 //Turn 180 Degrees
-    turnCounterClockwise(sensor_data, 87.75); //FIXME
-    turnCounterClockwise(sensor_data, 87.75); //FIXME
+    turnCounterClockwise(sensor_data, 86.5); //FIXME
+    turnCounterClockwise(sensor_data, 86.5); //FIXME
     fastScan(0, 180);
 //check if there was an object to avoid
     if (object_count >= 1)
@@ -947,7 +773,7 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 87.75); //FIXME
+            turnCounterClockwise(sensor_data, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -1002,7 +828,7 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 87.75); //FIXME
+            turnCounterClockwise(sensor_data, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -1067,7 +893,7 @@ void find_livingRoom(oi_t *sensor_data)
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 87.75); //FIXME
+            turnCounterClockwise(sensor_data, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -1130,7 +956,7 @@ void find_exit(oi_t *sensor_data)
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 87.75); //FIXME
+            turnCounterClockwise(sensor_data, 86.5); //FIXME
         }
         else if (note[0] == 'r')
         {
@@ -1163,22 +989,29 @@ void manualDriver(oi_t *sensor_data)
         // switch only over the first index of the message
         case '1':
             //find bathroom
+            Audio_Specified_Song(0x00, Good_Morning);
             find_bathroom(sensor_data);
+            Audio_Specified_Song(0x00, We_have_reached_the_Bathroom);
             break;
         case '2':
             //find kitchen -- Needs to make 180 degree turn and go back to start then turn right 90 degrees and go straight down
             find_kitchen(sensor_data);
+            Audio_Specified_Song(0x00, We_have_reached_the_Kitchen);
             break;
         case '3':
             //find Living Room --
             find_livingRoom(sensor_data);
+            Audio_Specified_Song(0x00, We_have_reached_the_Living_Room);
             break;
         case '4':
             //find Exit --
-            find_livingRoom(sensor_data);
+            find_exit(sensor_data);
+            Audio_Specified_Song(0x00, We_have_reached_the_front_door);
+            timer_waitMillis(6000);
+            Audio_Specified_Song(0x00, end);
             break;
         case 'x':
-            //audio_play();
+            Audio_Specified_Song(0x00, Are_You_Ready);
             cybot_send_string("Playing audio\n");
             break;
         case 'w':
@@ -1188,7 +1021,7 @@ void manualDriver(oi_t *sensor_data)
             break;
 
         case 'a':
-            turnCounterClockwise(sensor_data, 87.75);
+            turnCounterClockwise(sensor_data, 86.5);
             lcd_clear();
             cybot_send_string("Turning Left\n");
             break;
@@ -1209,6 +1042,7 @@ void manualDriver(oi_t *sensor_data)
         case 'q':
             oi_setWheels(0, 0);
             cybot_send_string("Stopping\n");
+            Audio_Specified_Song(0x00, Stopping_Now);
             break;
         case 'p':
             oi_setWheels(0, 0);
