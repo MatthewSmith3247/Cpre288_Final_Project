@@ -582,7 +582,7 @@ int fastScan(int startDeg, int endDeg)
         //send data to UART FIXME Debugging
         sprintf(scanned_data, "%d\t\t%.0f\t\n\r", scanned_degree_vals[0],
                 scanned_distance_vals_IR[0]);
-        cybot_send_string(scanned_data);
+        //cybot_send_string(scanned_data);
 
         // rotate values to the left 1 spot in the array
         //Ping
@@ -603,10 +603,10 @@ int fastScan(int startDeg, int endDeg)
 // send last 2 values FIXME Debugging
     sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[1],
             scanned_distance_vals_IR[1]);
-cybot_send_string(scanned_data);
+//cybot_send_string(scanned_data);
     sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[2],
             scanned_distance_vals_IR[2]);
-cybot_send_string(scanned_data);
+//cybot_send_string(scanned_data);
 
 // Find Distances of Objects and store the values
     for (i = 0; i < object_count; i++)
