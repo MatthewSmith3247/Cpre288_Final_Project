@@ -67,9 +67,9 @@ print("Got a message from server: " + rx_message.decode() + "\n") # Convert mess
 
 #---------------------------------BUTTON  SET UP
 #variables for later
-global word_said, text_to_speak, jokeCount, manual
+global word_said, text_to_speak, jokeCount, manualMode, buttonFunVal
 jokeCount = 0
-manual = 0
+manualMode = 0
 word_said = ""
 text_to_speak = " Hello"
 
@@ -1079,16 +1079,79 @@ def find_exit():
         clean_line = re.sub(r'[\x00]', '', line)
     send_message = "1\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+# def what will take place in the thread
+def socketThread():
+  while manualMode != 1: 
+    match buttonFunVal:
+      case "1":
+          find_bathroom()
+      case "2":
+          find_kitchen_full()
+      case "3":
+          find_livingRoom()
+      case "4"
+          find_exit()
+      case "L":
+          listen_for_command()
+      case "R":
+          respond()
+      case "m":
+          send_msg()
+  stop()
+  manual()     
 
+#Buttons will be used to decide which function will occur in the thread
+#Here are the buttons making that decision
+
+def buttonPush():
+  #run the listener function
+  global buttonFunVal
+  buttonFunVal = "L"
+
+def buttonPush2():
+  #run the To Living Room function: find_livingRoom
+  global buttonFunVal
+  buttonFunVal = "3"
+  
+def buttonPush3():
+  #run the To Exit
+  global buttonFunVal
+  buttonFunVal = "4"
+
+def buttonPush4():
+  #run the To Bathroom function: find_bathroom
+  global buttonFunVal
+  buttonFunVal = "1"
+
+def buttonPush5():
+  #run the To Kitchen function: find_kitchen_full
+  global buttonFunVal
+  buttonFunVal = "2"
+
+def buttonPush6():
+  #run the responder function: respond
+  global buttonFunVal
+  buttonFunVal = "R"
+
+def buttonPush7():
+  #run the Send_msg function
+  global buttonFunVal
+  buttonFunVal = "m"
+
+def buttonPush8():
+  #run the STOP function
+  global manualMode
+  manualMode = 1
+  
 #creating buttons Widget
-mybutton = Button(root, text="Listen", command=listen_for_command, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton2 = Button(root, text="To Living Room", command=find_livingRoom, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton3 = Button(root, text="To Exit", command=find_exit, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton4 = Button(root, text="To Bathroom", command=find_bathroom, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton5 = Button(root, text="To Kitchen", command=find_kitchen_full, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton6 = Button(root, text="Responder", command=respond, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton7 = Button(root, text="Send Msg", command=send_msg, bg="red", fg="black", font=("Helvetica", 25)) 
-mybutton8 = Button(root, text="STOP", command=stop, bg="red", fg="black", font=("Helvetica", 25)) 
+mybutton = Button(root, text="Listen", command=buttonPush, bg="red", fg="black", font=("Helvetica", 25)) #def listen_for_command
+mybutton2 = Button(root, text="To Living Room", command=buttonPush2, bg="red", fg="black", font=("Helvetica", 25)) #def find_livingRoom
+mybutton3 = Button(root, text="To Exit", command=buttonPush3, bg="red", fg="black", font=("Helvetica", 25)) #def find_exit
+mybutton4 = Button(root, text="To Bathroom", command=buttonPush4, bg="red", fg="black", font=("Helvetica", 25)) #def find_bathroom
+mybutton5 = Button(root, text="To Kitchen", command=buttonPush5, bg="red", fg="black", font=("Helvetica", 25)) #def find_kitchen_full
+mybutton6 = Button(root, text="Responder", command=buttonPush6, bg="red", fg="black", font=("Helvetica", 25)) # respond
+mybutton7 = Button(root, text="Send Msg", command=buttonPush7, bg="red", fg="black", font=("Helvetica", 25)) # def send_msg
+mybutton8 = Button(root, text="STOP", command=buttonPush8, bg="red", fg="black", font=("Helvetica", 25)) #def stop
 
 #Place buttons on grid
 mybutton_window = my_canvas.create_window(10, 10, anchor='nw', window=mybutton)
@@ -1104,5 +1167,9 @@ mybutton8_window = my_canvas.create_window(10, 500, anchor='nw', window=mybutton
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 #---------------------------------END BUTTON SET UP
+#implementing multithreading 
+my_thread = threading.Thread(target=socket_thread) # Create the thread
+my_thread.start() # Start the thread
+
 
 root.mainloop()
