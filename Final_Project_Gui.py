@@ -1251,36 +1251,48 @@ def find_livingRoom():
     send_message = "3\n"  
     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
     time.sleep(0.5)
-    print("sent message: " + send_message) 
+    #print("sent message: " + send_message) 
     line = cybot.readline().decode().strip() 
      # Remove specific unwanted characters  
     clean_line = re.sub(r'[\x00]', '', line)
     print("Received message " + clean_line + "\n") 
     progress = 'no'
+    movement = {
+        "north" : (0, -0.5),
+        "west" : (0.5, 0),
+        "east" : (-0.5, 0),
+        "south" : (0, 0.5)
+    }
     while 'done' not in progress:
-        global cybotx, cyboty, direction
+        global cybotx, cyboty, direction, jokeCount, manualMode
+        global flag_updateGraph
         #Check if a bump occured 
         if 'bump right' in clean_line:
             bumpRight()
+            jokeCount += 1
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         elif 'bump left' in clean_line:
             bumpLeft()
+            jokeCount += 1
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         elif 'scanning' in clean_line:
             takingScanData()
-            update_plot()
+            flag_updateGraph = 1
+            #update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         elif 'counterclockwise' in clean_line:
             turnedCounterClockwise()
-            update_plot()
+            flag_updateGraph = 1
+            #update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         elif 'clockwise' in clean_line:
             turnedClockwise()
-            update_plot()
+            flag_updateGraph = 1
+            #update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
         elif 'moved' in clean_line:
@@ -1297,20 +1309,125 @@ def find_livingRoom():
                     cybotx -= dist
                 case "west":
                     cybotx += dist
-            update_plot()
+            flag_updateGraph = 1
+            #update_plot()
             send_message = "0\n"  
             cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-        if cybotx >= 3.62:
-            if cyboty >= 1.75 and 'west' in direction:
+        elif 'wall' in clean_line:
+            #the cliff sensor was triggered by wall/outer boundary
+            print("wall")
+            match direction:
+                case "north":
+                    #we want the cybot to turn CCW, must be at bottom border
+                    cyboty = 0.10
+                    send_message = "left\n"  
+                    jokeCount += 1
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "south":
+                    #at top boundary needs to turn CW
+                    cyboty = 2.34
+                    jokeCount += 1
+                    send_message = "right\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "east":
+                    #Turn 2 CCW
+                    cybotx = 0.1
+                    jokeCount += 1
+                    send_message = "2\n"
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "west":
+                    #Turn CCW
+                    cybotx = 4.15
+                    jokeCount += 1
+                    send_message = "left\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            flag_updateGraph = 1 
+            #update_plot()
+        elif 'hole' in clean_line:
+            #the cliff sensor was triggered by black hole
+            print("hole")
+            match direction:
+                case "north":
+                    #we want the cybot to turn CCW, must be at bottom border
+                    cyboty = 1.515
+                    send_message = "left\n"  
+                    jokeCount += 1
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "south":
+                    #at top boundary needs to turn CW 
+                    cyboty = .915                
+                    jokeCount += 1
+                    send_message = "right\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "east":
+                    #Turn 2 CCW/turn around to face west
+                    cybotx = 2.44                 
+                    jokeCount += 1
+                    send_message = "2\n"
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                case "west":
+                    #Turn CCW to face south 
+                    cybotx = 1.83           
+                    jokeCount += 1
+                    send_message = "left\n"  
+                    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            flag_updateGraph = 1 
+            #update_plot()
+        elif 'stop' in clean_line:
+            eStop = 1
+            manualMode = 1
+            break
+        if cybotx >= 3.65:
+            if cyboty >= 1.83 and 'west' in direction:
                 progress = 'done'
-                send_message = "1\n"  
+                send_message = "f\n"  
                 cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
-            #FIXME Finish this
+                break
+            elif cyboty >= 1.83 and 'west' not in direction:
+                match direction:
+                    case "north":
+                        #turn 1 CCW
+                        send_message = "left\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "south":
+                        #turn 1 CW
+                        jokeCount += 1
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "east":
+                        #turn 2 CW
+                        jokeCount += 1
+                        send_message = "2\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+            elif cyboty <= 1.83 and 'south' in direction:
+                #Just Drive forward
+                send_message = "0\n"
+                cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server            
+            elif cyboty <= 1.83 and 'south' not in direction:
+                match direction:
+                    case "north":
+                        #turn  2 CW
+                        send_message = "2\n"
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "west":
+                        #turn 1 CCW
+                        send_message = "left\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+                    case "east":
+                        #turn 1 CW
+                        send_message = "right\n"  
+                        cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+        if eStop == 1:
+            break
+        if jokeCount == 8:
+            send_message = "j\n"  
+            cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server     
+        print("X: " + str(cybotx) + " Y: " + str(cyboty) + "Dir: " + direction)
         line = cybot.readline().decode().strip() 
         # Remove specific unwanted characters  
         clean_line = re.sub(r'[\x00]', '', line)
-    send_message = "1\n"  
-    cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
+    #send_message = "1\n"  
+    #cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
 
 def find_exit():
      # this function should move the bot from the top left to the top right 
