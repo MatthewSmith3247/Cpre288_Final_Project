@@ -335,6 +335,7 @@ def send_msg():
         plot() #def on line 97
     movement = {
         "north" : (0, -0.5),
+        "northwest"
         "west" : (0.5, 0),
         "east" : (-0.5, 0),
         "south" : (0, 0.5)
@@ -491,9 +492,13 @@ def manual():
     cleanMsg = rx_message.decode().strip()
     movement = {
         "north" : (0, -1),
+        "northwest" : (.7071, -.7071),
+        "northeast" : (-.7071, -.7071),
         "west" : (1, 0),
         "east" : (-1, 0),
-        "south" : (0, 1)
+        "south" : (0, 1),
+        "southeast": (-.7071, .7071),
+        "southwest":(.7071, .7071)
     }
     while 1:
         global cybotx, cyboty, direction
@@ -517,12 +522,33 @@ def manual():
                     "south" : "east",
                     "east" : "north",
                 }[direction]
+            case "q\n":
+                direction ={
+                    "north" : "northwest",
+                    "northwest" : "west",
+                    "west" : "southwest",
+                    "southwest" : "south",
+                    "south", "southeast",
+                    "southeast", "east",
+                    "east", "northeast",
+                    "northeast", "north",
+                }[direction]
             case "d\n":
                 direction ={
                     "north" : "east",
                     "west" : "north",
                     "south" : "west",
                     "east" : "south",
+                }[direction]
+            case "e\n":
+                direction ={
+                    "north" : "northeast",
+                    "northeast" : "east",
+                    "east" : "southeast",
+                    "southeast" : "south",
+                    "south" : "southwest",
+                    "west" : "northwest",
+                    "northwest": "north",
                 }[direction]
             case "m\n":
                 plot()
@@ -685,6 +711,10 @@ def find_bathroom():
                     cybot.write(send_message.encode()) # Convert String to bytes (i.e., encode), and send data to the server
             update_plot()
         elif 'stop' in clean_line:
+            eStop = 1
+            manual = 1
+            break
+        if mybutton8.is_pressed:
             eStop = 1
             manual = 1
             break
