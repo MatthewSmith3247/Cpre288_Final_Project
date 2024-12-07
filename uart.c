@@ -7,10 +7,12 @@
 
 #include "uart.h"
 #include "timer.h"
+#include "lcd.h"
+
 #define REPLACE_ME 0x00
 
 
-void uart_init() //THIS SAID INT BAUD BEFORE I CHANGED IT
+void uart_init(int baud) //THIS SAID INT BAUD BEFORE I CHANGED IT
 {
     SYSCTL_RCGCGPIO_R |= 0b00000010;      // enable clock GPIOB (page 340)
     SYSCTL_RCGCUART_R |= 0b00000010;      // enable clock UART1 (page 344)
@@ -124,9 +126,18 @@ void uart_interrupt_handler()
     }
 
 }
+void cybot_send_string(char string[50]){
+    // sends a string through UART
+
+    int j;
+    for(j = 0; j <= strlen(string); j++){
+        uart_sendChar(string[j]);
+    }
+
+}
 
 void connectToGui(){
-    oi_setWheels(0, 0);
+    //oi_setWheels(0, 0);
     char message[50];
     char buffer;
        int j = 0;
@@ -148,12 +159,4 @@ void connectToGui(){
      }
 }
 
-void cybot_send_string(char string[50]){
-    // sends a string through UART
 
-    int j;
-    for(j = 0; j <= strlen(string); j++){
-        uart_sendChar(string[j]);
-    }
-
-}

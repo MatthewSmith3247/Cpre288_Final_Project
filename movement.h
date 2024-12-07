@@ -7,6 +7,7 @@
 
 #ifndef MOVEMENT_H_
 #define MOVEMENT_H_
+#include "open_interface.h"
 
 
 void moveForward(oi_t*sensor, int centimeters);

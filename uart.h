@@ -22,7 +22,7 @@
                                   // in uart_data       
 
 
-void uart_init();
+void uart_init(int baud);
 
 void uart_sendChar(char data);
 

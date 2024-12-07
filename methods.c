@@ -12,6 +12,15 @@
 #include "adc.h" //YES
 #include "methods.h" //YES
 #include "audio.h" //YES
+#include "IMU.h"
+
+#define PID_KP  1.2f
+#define PID_KI  0.0f
+#define PID_KD  0.1f
+#define PID_TAU 0.00f
+#define PID_LIM_MIN -180.0f
+#define PID_LIM_MAX  180.0f
+#define PID_Sampling 0.1f
 
 /*
  void cybotSendString(char string[50])
@@ -52,6 +61,188 @@ void printIR(oi_t *sensor)
     sendToPutty(array, strlen(array));
 }
 
+void PIDController_Init(PIDController *pid)
+{
+
+    /* Clear controller variables */
+    pid->integrator = 0.0f;
+    pid->prevError = 0.0f;
+    pid->differentiator = 0.0f;
+    pid->prevMeasurement = 0.0f;
+    pid->out = 0.0f;
+
+}
+
+float PIDController_Update(PIDController *pid, float setpoint,
+                           float measurement)
+{
+
+    /*
+     * Error signal (handling angle wrapping)
+     */
+    float error = angle_difference(setpoint, measurement);
+
+    /*
+     * Proportional
+     */
+    float proportional = pid->Kp * error;
+
+    /*
+     * Integral
+     */
+    pid->integrator += 0.5f * pid->Ki * pid->T * (error + pid->prevError);
+
+    /* Anti-wind-up via integrator clamping */
+    if (pid->integrator > pid->limMaxInt)
+    {
+
+        pid->integrator = pid->limMaxInt;
+
+    }
+    else if (pid->integrator < pid->limMinInt)
+    {
+
+        pid->integrator = pid->limMinInt;
+    }
+
+    /*
+     * Derivative (band-limited differentiator)
+     */
+    float delta_measurement = angle_difference(measurement,
+                                               pid->prevMeasurement);
+
+    pid->differentiator = -(2.0f * pid->Kd * delta_measurement /* Note: derivative on measurement! */
+    + (2.0f * pid->tau - pid->T) * pid->differentiator)
+            / (2.0f * pid->tau + pid->T);
+
+    /*
+     * Compute output and apply limits
+     */
+    pid->out = proportional + pid->integrator + pid->differentiator;
+
+    if (pid->out > pid->limMax)
+    {
+        pid->out = pid->limMax;
+    }
+    else if (pid->out < pid->limMin)
+    {
+        pid->out = pid->limMin;
+    }
+
+    /* Store error and measurement for later use */
+    pid->prevError = error;
+    pid->prevMeasurement = measurement;
+
+    /* Return controller output */
+    return pid->out;
+
+}
+
+static float angle_difference(float target_angle, float current_angle)
+{
+    float diff = (target_angle - current_angle);
+    return diff;
+}
+
+
+float calculate_average_heading(void){
+
+       float heading_sum = 0.0f;
+       float num_readings = 5;
+       int i;
+
+       for (i = 0; i < num_readings; i++)
+       {
+           heading_sum += read_euler_heading(BNO055_ADDRESS_B)
+                   * (1.0f / 16.0f);
+           timer_waitMillis(50);
+       }
+       float current_heading = heading_sum / num_readings;
+       return current_heading;
+}
+
+
+
+
+int turn_degrees(oi_t *sensor_data, float degrees) {
+    // Clear LCD and provide direction feedback
+    lcd_clear();
+    if (degrees == 90) {
+        cybot_send_string("clockwise\n");
+    } else if (degrees == -90) {
+        cybot_send_string("counterclockwise\n");
+    }
+
+    // Calculate initial and desired headings
+    float initial_heading = calculate_average_heading();
+    float desired_heading = initial_heading + degrees;
+
+    // Normalize desired heading to 0-360 range
+    while (desired_heading > 360.0) {
+        desired_heading -= 360.0;
+    }
+    while (desired_heading < 0.0) {
+        desired_heading += 360.0;
+    }
+
+    // Determine turn direction
+    int turn_direction = (degrees > 0) ? 1 : -1;
+
+    // Fixed turning speed
+    const int16_t TURN_SPEED = 50;
+
+    // Heading tolerance and timeout parameters
+    const float HEADING_TOLERANCE = 5.0;  // 2-degree tolerance
+    const int MAX_TIMEOUT = 100;
+
+    float current_heading = initial_heading;
+    int timeout_counter = 0;
+
+    // Turn function
+    while (true) {
+        // Update sensor data and current heading
+        oi_update(sensor_data);
+        current_heading = calculate_average_heading();
+        lcd_printf("desired heading %.2f\nCurrent heading: %.2f\n" ,desired_heading, current_heading);
+        // Calculate heading error
+        float heading_error = fabs(desired_heading - current_heading);
+
+        // Check if turn is complete within tolerance
+        if (heading_error <= HEADING_TOLERANCE) {
+            break;
+        }
+
+        // Set wheel speeds for turning
+        int16_t right_speed = -1 *turn_direction * TURN_SPEED;
+        int16_t left_speed =  turn_direction * TURN_SPEED;
+        oi_setWheels(right_speed, left_speed);
+
+        // Timeout prevention
+        timeout_counter++;
+        if (timeout_counter > MAX_TIMEOUT) {
+            lcd_printf("Turn Timeout: Failed\n");
+            oi_setWheels(0, 0);
+            return 0;  // Turn failed
+        }
+    }
+
+    // Stop the robot
+    oi_setWheels(0, 0);
+
+    // Verify final heading
+    current_heading = calculate_average_heading();
+    float final_error = fabs(desired_heading - current_heading);
+
+    if (final_error > HEADING_TOLERANCE) {
+        lcd_printf("Turn Incomplete: Error %.2f\n", final_error);
+        return 0;
+    }
+
+    return 1;  // Turn successful
+}
+
+
+//CHANGED TO SENSOR_DATA FOR NOW
 void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance in MM
 {
     /*
@@ -63,12 +254,48 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
 
     float distanceTraveled = 0;
     float remainingDistance = 0;
+
     // resets the distance for the oi
-    int reset = sensor->distance;
+    //int reset = sensor->distance;
     char distMoved[50];
     char buffer;
     int j;
     char note[10];
+
+    oi_setWheels(0, 0);
+
+    /* Initialise PID controller */
+    PIDController pid = { PID_KP, PID_KI, PID_KD, PID_TAU, PID_LIM_MIN,
+    PID_LIM_MAX };
+
+    PIDController_Init(&pid);
+
+    // Read and average initial heading
+    float heading_sum = 0.0f;
+    int num_readings = 10;
+    int i;
+    for (i = 0; i < num_readings; i++)
+    {
+        heading_sum += read_euler_heading(BNO055_ADDRESS_B) * (1.0f / 16.0f);
+        timer_waitMillis(50);
+    }
+    float desired_heading = heading_sum / num_readings;
+
+    // Initialize variables
+    float current_heading = desired_heading;
+
+    // Display initial headings
+    printf("Initial Desired Heading: %.2f\n", desired_heading);
+    printf("Initial Current Heading: %.2f\n", current_heading);
+
+    //float prev_error = 0.0f;
+    //float integral = 0.0f;
+
+    // Define speed variables
+    int16_t base_speed = 0;               // Starting from 0 speed
+    const int16_t desired_base_speed = 175; // Target base speed (mm/s)
+    //const int16_t ramp_increment = 5;    // Speed increment per loop (mm/s)
+    //const int16_t max_wheel_speed = 300; // Max wheel speed per Roomba specs (mm/s)
 
     while ((distanceTraveled < totalDistance) && (sensor->bumpRight == 0)
             && (sensor->bumpLeft == 0)
@@ -82,11 +309,63 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
                     && (sensor->cliffRightSignal > 200)))
 
     {
-        oi_setWheels(105, 100); //CHANGE DURING TESTING
         oi_update(sensor);
-        distanceTraveled += sensor->distance; //Sensor Distance Returns a Value in MM
-        lcd_printf("Dist: %f", distanceTraveled);
+
+        // Read current heading
+
+        float heading_sum = 0.0f;
+        float num_readings = 10;
+        int i;
+
+        for (i = 0; i < num_readings; i++)
+        {
+            heading_sum += read_euler_heading(BNO055_ADDRESS_B)
+                    * (1.0f / 16.0f);
+            timer_waitMillis(50);
+        }
+        float current_heading = heading_sum / num_readings;
+
+        // Compute heading error
+        float error = angle_difference(desired_heading, current_heading);
+
+        //PIDController_Update(PIDController *pid, desired_heading, current_heading);
+
+        int16_t correct_angle_back = 0; //CHANGED TO = 0; INSTEAD OF ;
+
+        // Adjust wheel speeds
+        int16_t right_speed = base_speed + (int16_t) correct_angle_back;
+        int16_t left_speed = (base_speed - (int16_t) correct_angle_back);
+
+        // Set wheel speeds
+        oi_setWheels(right_speed, left_speed);
+
+        // Accumulate distances
+        distanceTraveled += sensor->distance;
+        sensor->distance = 0;
+
+        // Display debug information
+        lcd_printf("Heading: %.2f\nError: %.2f\nDist: %d mm", current_heading,
+                   error, totalDistance);
+
+        // Wait for next iteration
+        timer_waitMillis((uint32_t) (PID_Sampling * 1000));
+
+        // Ramp up speed if not at desired speed
+        if (base_speed < desired_base_speed)
+        {
+            oi_update(sensor);
+            base_speed += 10;  // Increment by 5 mm/s
+            if (base_speed > desired_base_speed)
+            {
+                oi_update(sensor);
+                base_speed = desired_base_speed;
+            }
+        }
     }
+
+    oi_setWheels(0, 0);
+    //oi_free(sensor);
+
     //record the distance moved and send it to the GUI
     sprintf(distMoved, "moved\t%0.2f\n", distanceTraveled);
     cybot_send_string(distMoved);
@@ -98,9 +377,9 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         cybot_send_string("bump left\n");
         Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
-        turnClockwise(sensor, 88.5); //CHANGE BASED ON TESTING FIXME  //88
+        turn_degrees(sensor, 90); //CHANGE BASED ON TESTING FIXME  //88
         moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING
-        turnCounterClockwise(sensor, 86.5); //CHANGE BASED ON TESTING  //88
+        turn_degrees(sensor, -90); //CHANGE BASED ON TESTING  //88
         moveForwardDetect(sensor, (remainingDistance + 100));
     }
 
@@ -109,22 +388,27 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         cybot_send_string("bump right\n");
         Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
-        turnCounterClockwise(sensor, 86.5); //88
+        turn_degrees(sensor, -90); //88
         moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING FIXME
-        turnClockwise(sensor, 88.5); //CHANGE BASED ON TESTING  //88
+        turn_degrees(sensor, 90); //CHANGE BASED ON TESTING  //88
         moveForwardDetect(sensor, (remainingDistance + 100));
     }
     if (sensor->cliffLeftSignal >= 2500 || sensor->cliffLeftSignal <= 200
             || sensor->cliffFrontLeftSignal >= 2500
             || sensor->cliffFrontLeftSignal <= 200)
     {
-        if(sensor->cliffLeftSignal >= 2500 || sensor->cliffFrontLeftSignal >= 2500){
+        if (sensor->cliffLeftSignal >= 2500
+                || sensor->cliffFrontLeftSignal >= 2500)
+        {
             Audio_Specified_Song(0x00, Black_hole);
+            cybot_send_string("hole\n");
         }
-        if(sensor->cliffLeftSignal >= 200 || sensor->cliffFrontLeftSignal >= 200){
+        if (sensor->cliffLeftSignal >= 200
+                || sensor->cliffFrontLeftSignal >= 200)
+        {
             Audio_Specified_Song(0x00, wall);
+            cybot_send_string("wall\n");
         }
-        cybot_send_string("Cliff Left Signal\n");
         buffer = uart_receive();
         j = 0;
         while (buffer != '\n')
@@ -140,18 +424,18 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor, 88.5); //FIXME
-            turnClockwise(sensor, 88.5); //FIXME
+            turn_degrees(sensor, 90); //FIXME
+            turn_degrees(sensor, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor, 86.5); //FIXME
+            turn_degrees(sensor, -90); //FIXME
         }
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor, 88.5); //FIXME
+            turn_degrees(sensor, 90); //FIXME
         }
     }
 
@@ -159,13 +443,18 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
             || sensor->cliffFrontRightSignal >= 2500
             || sensor->cliffFrontRightSignal <= 200)
     {
-        if(sensor->cliffRightSignal >= 2500 || sensor->cliffFrontRightSignal >= 2500){
-                    Audio_Specified_Song(0x00, Black_hole);
-                }
-        if(sensor->cliffRightSignal >= 200 || sensor->cliffFrontRightSignal >= 200){
-                    Audio_Specified_Song(0x00, wall);
-                }
-        cybot_send_string("Cliff Right Signal\n");
+        if (sensor->cliffRightSignal >= 2500
+                || sensor->cliffFrontRightSignal >= 2500)
+        {
+            Audio_Specified_Song(0x00, Black_hole);
+            cybot_send_string("hole\n");
+        }
+        if (sensor->cliffRightSignal >= 200
+                || sensor->cliffFrontRightSignal >= 200)
+        {
+            Audio_Specified_Song(0x00, wall);
+            cybot_send_string("wall\n");
+        }
         char buffer;
         int j;
         char note[10];
@@ -183,22 +472,171 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor, 88.5); //FIXME
-            turnClockwise(sensor, 88.5); //FIXME
+            turn_degrees(sensor, 90); //FIXME
+            turn_degrees(sensor, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor, 86.5); //FIXME
+            turn_degrees(sensor, -90); //FIXME
         }
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor, 88.5); //FIXME
+            turn_degrees(sensor, 90); //FIXME
         }
     }
 
 }
+/*
+ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance in MM
+ {
+
+ * Move forward as long as there isn't a low object or out of bounds tape | (bumpSensor == 0) && (cliffSensor == 0)
+ * Also store the distance we've traveled and subtract that from the total distance then recursively call moveForwardDetect(sensor, newDistance)
+ * If IR value is greater than 1800 or less than 1200 based on testing.
+ * In testing FRONT sensors were the same. Right Sensor was ~1780 on floor. Left Sensor was ~2200 on floor. All sensors gave a reading of ~2700 for the tape
+
+
+ float distanceTraveled = 0;
+ float remainingDistance = 0;
+ // resets the distance for the oi
+ int reset = sensor->distance;
+ char distMoved[50];
+ char buffer;
+ int j;
+ char note[10];
+
+ while ((distanceTraveled < totalDistance) && (sensor->bumpRight == 0)
+ && (sensor->bumpLeft == 0)
+ && ((sensor->cliffFrontLeftSignal < 2500)
+ && (sensor->cliffFrontLeftSignal > 200))
+ && ((sensor->cliffFrontRightSignal < 2500)
+ && (sensor->cliffFrontRightSignal > 200))
+ && ((sensor->cliffLeftSignal < 2500)
+ && (sensor->cliffLeftSignal > 200))
+ && ((sensor->cliffRightSignal < 2500)
+ && (sensor->cliffRightSignal > 200)))
+
+ {
+ oi_setWheels(105, 100); //CHANGE DURING TESTING
+ oi_update(sensor);
+ distanceTraveled += sensor->distance; //Sensor Distance Returns a Value in MM
+ lcd_printf("Dist: %f", distanceTraveled);
+ }
+ //record the distance moved and send it to the GUI
+ sprintf(distMoved, "moved\t%0.2f\n", distanceTraveled);
+ cybot_send_string(distMoved);
+ oi_setWheels(0, 0);
+ remainingDistance = totalDistance - distanceTraveled;
+
+ if (sensor->bumpLeft == 1)
+ {
+ cybot_send_string("bump left\n");
+ Audio_Specified_Song(0x00, Small_Obj_Hit);
+ moveBackward(sensor, 100);
+ turn_degrees(sensor, 90); //CHANGE BASED ON TESTING FIXME  //88
+ moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING
+ turn_degrees(sensor, -90); //CHANGE BASED ON TESTING  //88
+ moveForwardDetect(sensor, (remainingDistance + 100));
+ }
+
+ else if (sensor->bumpRight == 1)
+ {
+ cybot_send_string("bump right\n");
+ Audio_Specified_Song(0x00, Small_Obj_Hit);
+ moveBackward(sensor, 100);
+ turn_degrees(sensor, -90); //88
+ moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING FIXME
+ turn_degrees(sensor, 90); //CHANGE BASED ON TESTING  //88
+ moveForwardDetect(sensor, (remainingDistance + 100));
+ }
+ if (sensor->cliffLeftSignal >= 2500 || sensor->cliffLeftSignal <= 200
+ || sensor->cliffFrontLeftSignal >= 2500
+ || sensor->cliffFrontLeftSignal <= 200)
+ {
+ if(sensor->cliffLeftSignal >= 2500 || sensor->cliffFrontLeftSignal >= 2500){
+ Audio_Specified_Song(0x00, Black_hole);
+ }
+ if(sensor->cliffLeftSignal >= 200 || sensor->cliffFrontLeftSignal >= 200){
+ Audio_Specified_Song(0x00, wall);
+ }
+ cybot_send_string("Cliff Left Signal\n");
+ buffer = uart_receive();
+ j = 0;
+ while (buffer != '\n')
+ {
+ note[j] = buffer;
+ lcd_putc(note[j]);
+ j++;
+ buffer = uart_receive();
+ }
+ moveBackward(sensor, 50); //CHANGE VALUE CHANGE PLACE
+ lcd_printf("Note: %s", note);
+
+ if (note[0] == '2')
+ {
+ //facing wrong direction turn 2 times CW
+ turn_degrees(sensor, 90); //FIXME
+ turn_degrees(sensor, 90); //FIXME
+ }
+ else if (note[0] == 'l')
+ {
+ //turn left or 1 CCW
+ turn_degrees(sensor, -90); //FIXME
+ }
+ else if (note[0] == 'r')
+ {
+ //turn right or 1 CW
+ turn_degrees(sensor, 90); //FIXME
+ }
+ }
+
+ else if (sensor->cliffRightSignal >= 2500 || sensor->cliffRightSignal <= 200
+ || sensor->cliffFrontRightSignal >= 2500
+ || sensor->cliffFrontRightSignal <= 200)
+ {
+ if(sensor->cliffRightSignal >= 2500 || sensor->cliffFrontRightSignal >= 2500){
+ Audio_Specified_Song(0x00, Black_hole);
+ }
+ if(sensor->cliffRightSignal >= 200 || sensor->cliffFrontRightSignal >= 200){
+ Audio_Specified_Song(0x00, wall);
+ }
+ cybot_send_string("Cliff Right Signal\n");
+ char buffer;
+ int j;
+ char note[10];
+ buffer = uart_receive();
+ while (buffer != '\n')
+ {
+ note[j] = buffer;
+ lcd_putc(note[j]);
+ j++;
+ buffer = uart_receive();
+ }
+ moveBackward(sensor, 50);
+ lcd_printf("Note: %s", note);
+
+ if (note[0] == '2')
+ {
+ //facing wrong direction turn 2 times CW
+ turn_degrees(sensor, 90); //FIXME
+ turn_degrees(sensor, 90); //FIXME
+ }
+ else if (note[0] == 'l')
+ {
+ //turn left or 1 CCW
+ turn_degrees(sensor, -90); //FIXME
+ }
+ else if (note[0] == 'r')
+ {
+ //turn right or 1 CW
+ turn_degrees(sensor, 90); //FIXME
+ }
+ }
+
+ }
+ */
 
 int objectCollision()
 {
@@ -223,36 +661,13 @@ void objectAvoid(oi_t *sensor)
 
         if (midpoint_angle[0] <= 90 && midpoint_angle[0] >= 10)
         {
-            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
+            objOppDist[0] = object_distance[0]
+                    * sin(90 - (midpoint_angle[0]) * M_PI / 180);
             //See if the object is going to be in the way or not. If it is greater than 8, it is not a problem
-            if(objOppDist[0] <= 8)
-            {
-            //turn counterclockwise, then scan
-            turnCounterClockwise(sensor, 86.5);
-            fastScan(0, 180);
-            //check if there was an object to avoid
-            if (object_count >= 1)
-            {
-                //avoid the object
-                //secondObject(sensor);
-            }
-            //try to move forward
-            else
-            {
-                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
-            }
-            //turn back
-            turnClockwise(sensor, 88.5);
-        }
-
-        }
-        else if (midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90) //CHANGE DURING TESTING
-        {
-            objOppDist[0] = object_distance[0] * sin((midpoint_angle[0]- 90) * M_PI / 180);
             if (objOppDist[0] <= 8)
             {
-                //turn clockwise, then scan
-                turnClockwise(sensor, 88.5);
+                //turn counterclockwise, then scan
+                turn_degrees(sensor, -90);
                 fastScan(0, 180);
                 //check if there was an object to avoid
                 if (object_count >= 1)
@@ -266,7 +681,32 @@ void objectAvoid(oi_t *sensor)
                     moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
                 }
                 //turn back
-                turnCounterClockwise(sensor, 86.5);
+                turn_degrees(sensor, 90);
+            }
+
+        }
+        else if (midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90) //CHANGE DURING TESTING
+        {
+            objOppDist[0] = object_distance[0]
+                    * sin((midpoint_angle[0] - 90) * M_PI / 180);
+            if (objOppDist[0] <= 8)
+            {
+                //turn clockwise, then scan
+                turn_degrees(sensor, 90);
+                fastScan(0, 180);
+                //check if there was an object to avoid
+                if (object_count >= 1)
+                {
+                    //avoid the object
+                    //secondObject(sensor);
+                }
+                //try to move forward
+                else
+                {
+                    moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                }
+                //turn back
+                turn_degrees(sensor, -90);
             }
         }
 
@@ -278,52 +718,58 @@ void objectAvoid(oi_t *sensor)
                 && (midpoint_angle[1] < 90 && midpoint_angle[1] >= 30))
         {
             //Find the real distances from the cybot in the tangential direction
-            objOppDist[0] = object_distance[0]* sin((90 - midpoint_angle[0]) * M_PI / 180);
-            objOppDist[1] = object_distance[1]* sin((90 - midpoint_angle[1]) * M_PI / 180);
-            if(objOppDist[0] <= 8 || objOppDist[1] <= 8){
-            //turn counterclockwise, then scan
-            turnCounterClockwise(sensor, 86.5);
-            fastScan(0, 180);
-            //check if there was an object to avoid
-            if (object_count >= 1)
+            objOppDist[0] = object_distance[0]
+                    * sin((90 - midpoint_angle[0]) * M_PI / 180);
+            objOppDist[1] = object_distance[1]
+                    * sin((90 - midpoint_angle[1]) * M_PI / 180);
+            if (objOppDist[0] <= 8 || objOppDist[1] <= 8)
             {
-                //avoid the object
-                secondObject(sensor);
-            }
-            //try to move forward
-            else
-            {
-                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
-            }
-            //turn back
-            turnClockwise(sensor, 88.5);
+                //turn counterclockwise, then scan
+                turn_degrees(sensor, -90);
+                fastScan(0, 180);
+                //check if there was an object to avoid
+                if (object_count >= 1)
+                {
+                    //avoid the object
+                    secondObject(sensor);
+                }
+                //try to move forward
+                else
+                {
+                    moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                }
+                //turn back
+                turn_degrees(sensor, 90);
             }
         }
         //they could both be greater than 90
         else if ((midpoint_angle[0] <= 150 && midpoint_angle[0] >= 90)
                 && (midpoint_angle[1] <= 150 && midpoint_angle[1] >= 90))
         {
-         //Find the real distances from the cybot in the tangential direction
-            objOppDist[0] = object_distance[0]* sin((midpoint_angle[0] - 90) * M_PI / 180);
-            objOppDist[1] = object_distance[1]* sin((midpoint_angle[1] - 90) * M_PI / 180); 
-         if(objOppDist[0] <= 8 || objOppDist[1] <= 8){
-            //turn clockwise, then scan
-            turnClockwise(sensor, 88.5);
-            fastScan(0, 180);
-            //check if there was an object to avoid
-            if (object_count >= 1)
+            //Find the real distances from the cybot in the tangential direction
+            objOppDist[0] = object_distance[0]
+                    * sin((midpoint_angle[0] - 90) * M_PI / 180);
+            objOppDist[1] = object_distance[1]
+                    * sin((midpoint_angle[1] - 90) * M_PI / 180);
+            if (objOppDist[0] <= 8 || objOppDist[1] <= 8)
             {
-                //avoid the object
-                secondObject(sensor);
+                //turn clockwise, then scan
+                turn_degrees(sensor, 90);
+                fastScan(0, 180);
+                //check if there was an object to avoid
+                if (object_count >= 1)
+                {
+                    //avoid the object
+                    secondObject(sensor);
+                }
+                //try to move forward
+                else
+                {
+                    moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                }
+                //turn back
+                turn_degrees(sensor, -90);
             }
-            //try to move forward
-            else
-            {
-                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
-            }
-            //turn back
-            turnCounterClockwise(sensor, 86.5);
-         }
         }
         //If they ain't both on one side pick the one that is closer/in the way to turn away from? Deal with the second later
         else if (object_distance[0] < object_distance[1])
@@ -422,7 +868,7 @@ void secondObject(oi_t *sensor)
             else
             {
                 //danger zone -- the object is RIGHT THERE, randomly turn until there isn't an object?
-                turnClockwise(sensor, 88.5);
+                turn_degrees(sensor, 90);
                 fastScan(0, 180);
                 //check if there was an object to avoid
                 if (object_count >= 1)
@@ -653,7 +1099,6 @@ int fastScan(int startDeg, int endDeg)
     return 1;
 }
 
-
 void find_bathroom(oi_t *sensor_data)
 {
     currPath = 1;
@@ -686,7 +1131,7 @@ void find_bathroom(oi_t *sensor_data)
             buffer = uart_receive();
         }
         lcd_printf("Note: %s", note);
-        if (note[0] == '1')
+        if (note[0] == 'f')
         {
             //at destination
             break;
@@ -694,24 +1139,26 @@ void find_bathroom(oi_t *sensor_data)
         else if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor_data, 88.5); //FIXME
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
             //turn left or 1 CCW
-            turnCounterClockwise(sensor_data, 86.5); //FIXME
+            turn_degrees(sensor_data, -90);
         }
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
-        else if(note[0] == 'q'){
+        else if (note[0] == 'q')
+        {
             cybot_send_string("stop\n");
             break;
         }
-        else if(note[0] == 'j'){
+        else if (note[0] == 'j')
+        {
             Audio_Specified_Song(0x00, Joke_1);
         }
         //check if there was an object to avoid
@@ -764,7 +1211,7 @@ void find_kitchen(oi_t *sensor_data)
             buffer = uart_receive();
         }
         lcd_printf("Note: %s", note);
-        if (note[0] == '1')
+        if (note[0] == 'f')
         {
             //at destination
             break;
@@ -772,8 +1219,8 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor_data, 88.5); //FIXME
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
@@ -783,11 +1230,11 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
     }
 //Now Turn and get up to Kitchen
-    turnClockwise(sensor_data, 88.5); //CHANGE BASED ON TESTING  //88
+    turn_degrees(sensor_data, 90); //CHANGE BASED ON TESTING  //88
     currPath = 3;
     hasTurned = 0;
     fastScan(0, 180);
@@ -819,7 +1266,7 @@ void find_kitchen(oi_t *sensor_data)
             buffer = uart_receive();
         }
         lcd_printf("Note: %s", note);
-        if (note[0] == '1')
+        if (note[0] == 'f')
         {
             //at destination
             break;
@@ -827,8 +1274,8 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor_data, 88.5); //FIXME
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
@@ -838,7 +1285,7 @@ void find_kitchen(oi_t *sensor_data)
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
     }
 
@@ -853,7 +1300,7 @@ void find_livingRoom(oi_t *sensor_data)
     int j;
     char note[10];
 //turn
-    turnClockwise(sensor_data, 88.5); //CHANGE BASED ON TESTING  //88
+    turn_degrees(sensor_data, 90); //CHANGE BASED ON TESTING  //88
     fastScan(0, 180);
 //check if there was an object to avoid
     if (object_count >= 1)
@@ -884,7 +1331,7 @@ void find_livingRoom(oi_t *sensor_data)
             buffer = uart_receive();
         }
         lcd_printf("Note: %s", note);
-        if (note[0] == '1')
+        if (note[0] == 'f')
         {
             //at destination
             break;
@@ -892,8 +1339,8 @@ void find_livingRoom(oi_t *sensor_data)
         else if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor_data, 88.5); //FIXME
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
@@ -903,7 +1350,7 @@ void find_livingRoom(oi_t *sensor_data)
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
     }
 }
@@ -917,7 +1364,7 @@ void find_exit(oi_t *sensor_data)
     int j;
     char note[10];
 //turn
-    turnClockwise(sensor_data, 88.5); //CHANGE BASED ON TESTING  //88
+    turn_degrees(sensor_data, 90); //CHANGE BASED ON TESTING  //88
     fastScan(0, 180);
 //check if there was an object to avoid
     if (object_count >= 1)
@@ -947,7 +1394,7 @@ void find_exit(oi_t *sensor_data)
             buffer = uart_receive();
         }
         lcd_printf("Note: %s", note);
-        if (note[0] == '1')
+        if (note[0] == 'f')
         {
             //at destination
             break;
@@ -955,8 +1402,8 @@ void find_exit(oi_t *sensor_data)
         else if (note[0] == '2')
         {
             //facing wrong direction turn 2 times CW
-            turnClockwise(sensor_data, 88.5); //FIXME
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
         else if (note[0] == 'l')
         {
@@ -966,7 +1413,7 @@ void find_exit(oi_t *sensor_data)
         else if (note[0] == 'r')
         {
             //turn right or 1 CW
-            turnClockwise(sensor_data, 88.5); //FIXME
+            turn_degrees(sensor_data, 90); //FIXME
         }
     }
 }
@@ -1031,7 +1478,7 @@ void manualDriver(oi_t *sensor_data)
             cybot_send_string("Turning Left\n");
             break;
         case 'd':
-            turnClockwise(sensor_data, 88.5);
+            turn_degrees(sensor_data, 90);
             lcd_clear();
             cybot_send_string("Turning Right\n");
             break;
