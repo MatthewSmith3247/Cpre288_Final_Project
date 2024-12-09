@@ -1,17 +1,16 @@
-////INCLUDE ALL THE INCLUDES
-#include "adc.h" //YES
-#include "uart.h" //YES
-#include "Timer.h" //YES
-#include "lcd.h" //YES
-#include "math.h" //JUST MATH SO YES
-#include "open_interface.h" //YES
-#include "movement.h" //YES
-#include "button.h" //YES
-#include "ping.h" //YES
-#include "servo.h" //NO? THEY DO IT DIFFERENTLY
-#include "adc.h" //YES
-#include "methods.h" //YES
-#include "audio.h" //YES
+#include "adc.h" 
+#include "uart.h" 
+#include "Timer.h" 
+#include "lcd.h" 
+#include "math.h"
+#include "open_interface.h"
+#include "movement.h" 
+#include "button.h" 
+#include "ping.h" 
+#include "servo.h" 
+#include "adc.h" 
+#include "methods.h" 
+#include "audio.h" 
 #include "IMU.h"
 
 #define M_PI 3.141592653589793
@@ -47,348 +46,9 @@ int i, j;
 volatile int currPath;
 volatile int hasTurned;
 
-//void PIDController_Init(PIDController *pid)
-//{
-//
-//    /* Clear controller variables */
-//    pid->integrator = 0.0f;
-//    pid->prevError = 0.0f;
-//    pid->differentiator = 0.0f;
-//    pid->prevMeasurement = 0.0f;
-//    pid->out = 0.0f;
-//
-//}
-//
-//float PIDController_Update(PIDController *pid, float setpoint,
-//                           float measurement)
-//{
-//
-//    /*
-//     * Error signal (handling angle wrapping)
-//     */
-//    float error = angle_difference(setpoint, measurement);
-//
-//    /*
-//     * Proportional
-//     */
-//    float proportional = pid->Kp * error;
-//
-//    /*
-//     * Integral
-//     */
-//    pid->integrator += 0.5f * pid->Ki * pid->T * (error + pid->prevError);
-//
-//    /* Anti-wind-up via integrator clamping */
-//    if (pid->integrator > pid->limMaxInt)
-//    {
-//
-//        pid->integrator = pid->limMaxInt;
-//
-//    }
-//    else if (pid->integrator < pid->limMinInt)
-//    {
-//
-//        pid->integrator = pid->limMinInt;
-//    }
-//
-//    /*
-//     * Derivative (band-limited differentiator)
-//     */
-//    float delta_measurement = angle_difference(measurement,
-//                                               pid->prevMeasurement);
-//
-//    pid->differentiator = -(2.0f * pid->Kd * delta_measurement /* Note: derivative on measurement! */
-//    + (2.0f * pid->tau - pid->T) * pid->differentiator)
-//            / (2.0f * pid->tau + pid->T);
-//
-//    /*
-//     * Compute output and apply limits
-//     */
-//    pid->out = proportional; //+ pid->integrator + pid->differentiator;
-//
-//    if (pid->out > pid->limMax)
-//    {
-//        pid->out = pid->limMax;
-//    }
-//    else if (pid->out < pid->limMin)
-//    {
-//        pid->out = pid->limMin;
-//    }
-//
-//    /* Store error and measurement for later use */
-//    pid->prevError = error;
-//    pid->prevMeasurement = measurement;
-//
-//    /* Return controller output */
-//    return pid->out;
-//
-//}
-//
-//void bubble_sort(float arr[], int n)
-//{
-//    for (i = 0; i < n - 1; i++)
-//    {
-//        for (j = 0; j < n - i - 1; j++)
-//        {
-//            if (arr[j] > arr[j + 1])
-//            {
-//                // Swap arr[j] and arr[j + 1]
-//                float temp = arr[j];
-//                arr[j] = arr[j + 1];
-//                arr[j + 1] = temp;
-//            }
-//        }
-//    }
-//}
-//
-//float PID_linear_movement(oi_t *sensor, int totalDistance)
-//{
-//
-//    float distanceTraveled = 0;
-//    int16_t correct_angle_back, right_speed, left_speed;
-//    // resets the distance for the oi
-//    //int reset = sensor->distance;
-//    int i;
-//    float current_heading, error, heading_sum, desired_heading;
-//    oi_setWheels(0, 0);
-//
-//    /* Initialize PID controller */
-//    PIDController pid = { PID_KP, PID_KI, PID_KD, PID_TAU, PID_LIM_MIN,
-//                          PID_LIM_MAX, PID_LIM_MIN_INT, PID_LIM_MAX_INT,
-//                          SAMPLE_TIME_S };
-//
-//    PIDController_Init(&pid);
-//
-//    // Read and average initial heading
-//    float heading_readings[5];
-//    heading_sum = 0.0f;
-//    int num_readings = 5;
-//    for (i = 0; i < num_readings; i++)
-//    {
-//        heading_readings[i] = read_euler_heading(BNO055_ADDRESS_B)
-//                * (1.0f / 16.0f);
-//        timer_waitMillis(5);
-//    }
-//
-//    // Sort the array using bubble sort
-//    bubble_sort(heading_readings, num_readings);
-//
-//    // Calculate the average of the middle three readings
-//    for (i = 1; i < num_readings - 1; i++)
-//    { // Skip the lowest and highest
-//        heading_sum += heading_readings[i];
-//    }
-//    desired_heading = heading_sum / 3.0f;
-//
-//    // Initialize variables
-//    current_heading = desired_heading;
-//
-//    // Display initial headings
-//    printf("Initial Desired Heading: %.2f\n", desired_heading);
-//    printf("Initial Current Heading: %.2f\n", current_heading);
-//
-//    //float prev_error = 0.0f;
-//    //float integral = 0.0f;
-//    // Define speed variables
-//    int16_t base_speed = 0;               // Starting from 0 speed
-//    const int16_t desired_base_speed = 75; // Target base speed (mm/s)
-//    //const int16_t ramp_increment = 5;    // Speed increment per loop (mm/s)
-//    //const int16_t max_wheel_speed = 300; // Max wheel speed per Roomba specs (mm/s)
-//
-//    sensor->distance = 0;
-//
-//    while ((distanceTraveled < totalDistance) //&& (sensor->bumpRight == 0)
-////            && (sensor->bumpLeft == 0)
-////            && ((sensor->cliffFrontLeftSignal < 2500)
-////                    && (sensor->cliffFrontLeftSignal > 200))
-////            && ((sensor->cliffFrontRightSignal < 2500)
-////                    && (sensor->cliffFrontRightSignal > 200))
-////            && ((sensor->cliffLeftSignal < 2500)
-////                    && (sensor->cliffLeftSignal > 200))
-////            && ((sensor->cliffRightSignal < 2500)
-////                    && (sensor->cliffRightSignal > 200))
-//    )
-//
-//    {
-//        oi_update(sensor);
-//
-//        // Read current heading
-//
-//        heading_sum = 0.0f;
-//        num_readings = 10;
-//
-//        for (i = 0; i < num_readings; i++)
-//        {
-//            oi_update(sensor);
-//            heading_sum += read_euler_heading(BNO055_ADDRESS_B)
-//                    * (1.0f / 16.0f);
-//            timer_waitMillis(50);
-//        }
-//        current_heading = heading_sum / (float) num_readings;
-//
-//        // Compute heading error
-//        error = angle_difference(desired_heading, current_heading);
-//        if ((totalDistance - distanceTraveled) < 5)
-//        {
-//            //slow down before end
-//            base_speed = desired_base_speed
-//                    * ((totalDistance - distanceTraveled) / 5.0f);
-//        }
-//        if (error >= 8)
-//        {
-//            correct_angle_back = PIDController_Update(&pid, desired_heading,
-//                                                      current_heading); //CHANGED TO = 0; INSTEAD OF ;
-//        }
-//        else
-//        {
-//            correct_angle_back = 0;
-//        }
-//        // Adjust wheel speeds
-//        right_speed = base_speed - (int16_t) correct_angle_back; //
-//        left_speed = (base_speed + (int16_t) correct_angle_back); //
-//
-//        // Set wheel speeds
-//        oi_setWheels(right_speed, left_speed);
-//        // Accumulate distances
-//        distanceTraveled += sensor->distance;
-//
-//        // Display debug information
-//        lcd_printf("Error: %.2f\ndist travl: %.2f\n Td: %d\nCAB: %d", error,
-//                   distanceTraveled, totalDistance,
-//                   (int16_t) correct_angle_back);
-//        //Dist: %d mm\n
-//        // Wait for next iteration
-//        timer_waitMillis((uint32_t) (SAMPLE_TIME_S * 1000));
-//        oi_update(sensor);
-//
-//        base_speed = desired_base_speed;
-//
-//    }
-//    lcd_clear();
-//    oi_setWheels(0, 0);
-//    lcd_printf("BL: %d\nBR: %d\nCFL: %d\nCFR: %d\n", sensor->bumpLeft,
-//               sensor->bumpRight, sensor->cliffFrontLeftSignal,
-//               sensor->cliffFrontRightSignal);
-//    timer_waitMillis(5000);
-//    return distanceTraveled;
-//
-//}
-//
-//float angle_difference(float target_angle, float current_angle)
-//{
-//    float diff = (target_angle - current_angle);
-//    while (diff > 180.0f)
-//        diff -= 360.0f;
-//    while (diff < -180.0f)
-//        diff += 360.0f;
-//    return diff;
-//}
-//
-//float calculate_average_heading(void)
-//{
-//
-//    float heading_sum = 0.0f;
-//    float num_readings = 5;
-//    int i;
-//
-//    for (i = 0; i < num_readings; i++)
-//    {
-//        heading_sum += read_euler_heading(BNO055_ADDRESS_B) * (1.0f / 16.0f);
-//        timer_waitMillis(50);
-//    }
-//    float current_heading = heading_sum / num_readings;
-//    return current_heading;
-//}
-//
-//int turn_degrees(oi_t *sensor_data, float degrees)
-//{
-//    // Clear LCD and provide direction feedback
-//    lcd_clear();
-//    if (degrees == 90)
-//    {
-//        cybot_send_string("clockwise\n");
-//    }
-//    else if (degrees == -90)
-//    {
-//        cybot_send_string("counterclockwise\n");
-//    }
-//
-//    // Calculate initial and desired headings
-//    float initial_heading = calculate_average_heading();
-//    float desired_heading = initial_heading + degrees;
-//
-//    // Normalize desired heading to 0-360 range
-//    while (desired_heading > 360.0)
-//    {
-//        desired_heading -= 360.0;
-//    }
-//    while (desired_heading < 0.0)
-//    {
-//        desired_heading += 360.0;
-//    }
-//
-//    // Determine turn direction
-//    int turn_direction = (degrees > 0) ? 1 : -1;
-//
-//    // Fixed turning speed
-//    const int16_t TURN_SPEED = 50;
-//
-//    // Heading tolerance and timeout parameters
-//    const float HEADING_TOLERANCE = 5.0;  // 2-degree tolerance
-//    const int MAX_TIMEOUT = 100;
-//
-//    float current_heading = initial_heading;
-//    int timeout_counter = 0;
-//
-//    // Turn function
-//    while (true)
-//    {
-//        // Update sensor data and current heading
-//        oi_update(sensor_data);
-//        current_heading = calculate_average_heading();
-//        lcd_printf("desired heading %.2f\nCurrent heading: %.2f\n",
-//                   desired_heading, current_heading);
-//        // Calculate heading error
-//        float heading_error = abs(desired_heading - current_heading);
-//
-//        // Check if turn is complete within tolerance
-//        if (heading_error <= HEADING_TOLERANCE)
-//        {
-//            break;
-//        }
-//
-//        // Set wheel speeds for turning
-//        int16_t right_speed = -1 * turn_direction * TURN_SPEED;
-//        int16_t left_speed = turn_direction * TURN_SPEED;
-//        oi_setWheels(right_speed, left_speed);
-//
-//        // Timeout prevention
-//        timeout_counter++;
-//        if (timeout_counter > MAX_TIMEOUT)
-//        {
-//            lcd_printf("Turn Timeout: Failed\n");
-//            oi_setWheels(0, 0);
-//            return 0;  // Turn failed
-//        }
-//    }
-//
-//    // Stop the robot
-//    oi_setWheels(0, 0);
-//
-//    // Verify final heading
-//    current_heading = calculate_average_heading();
-//    float final_error = abs(desired_heading - current_heading);
-//
-//    if (final_error > HEADING_TOLERANCE)
-//    {
-//        lcd_printf("Turn Incomplete: Error %.2f\n", final_error);
-//        return 0;
-//    }
-//
-//    return 1;  // Turn successful
-//}
 
-//CHANGED TO SENSOR_DATA FOR NOW
+
+
 void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance in MM
 {
     /*
@@ -601,13 +261,7 @@ void oneObject(oi_t *sensor)
 {
     //If there is one object, turn away from the object, if it is in the range of 30 - 150 deg
     //find distance from object to determine necessity
-//
-//
-//
-//
-//    final_angle[i] - initial_angle[i]
-//
-//
+    //    final_angle[i] - initial_angle[i]
 
     if (midpoint_angle[0] <= 90 && midpoint_angle[0] >= 10)
     {
@@ -616,13 +270,13 @@ void oneObject(oi_t *sensor)
         //See if the object is going to be in the way or not. If it is greater than 8, it is not a problem
         if (objOppDist[0] > 22)
         {
-            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING;
             //check if there was an object to avoid
         }
         //try to move forward
         else if (object_distance[0] >= 40)
         {
-            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING;
 
         }
         else
@@ -632,7 +286,7 @@ void oneObject(oi_t *sensor)
             turnCounterClockwise(sensor, 86.5);
             fastScan(0, 180);
             objectAvoid(sensor);
-            moveForwardDetect(sensor, 200); //FIXXME during testing
+            moveForwardDetect(sensor, 200); 
             turnClockwise(sensor, 86.5);
 
         }
@@ -642,7 +296,7 @@ void oneObject(oi_t *sensor)
         {
             objOppDist[0] = object_distance[0]
                     * sin(abs((initial_angle[0] - 90)) * M_PI / 180);
-            //See if the object is going to be in the way or not. If it is greater than 8, it is not a problem
+            //See if the object is going to be in the way or not. If it is greater than 22, it is not a problem
             if (objOppDist[0] > 22)
             {
                 moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
@@ -679,7 +333,7 @@ void twoObjects(oi_t *sensor)
     //if one object doesnt matter then run one Object function
     lcd_printf("%.2f , %.2f\n Dist:%.2f A: %d", objOppDist[0],objOppDist[1], object_distance[0], midpoint_angle[0]);
     if (objOppDist[0] >= 22 && objOppDist[1] >= 20){
-        moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+        moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING;
 
     }
     else if(objOppDist[1] >= 22  ){
@@ -699,7 +353,7 @@ void twoObjects(oi_t *sensor)
     {
         if (objOppDist[0] > 22  && objOppDist[1] > 22 ){
             //will miss both
-            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+            moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING;
         }
         else if (objOppDist[0] <= 22  || objOppDist[1] <= 22 )
         {
@@ -715,7 +369,7 @@ void twoObjects(oi_t *sensor)
             //try to move forward
             else
             {
-                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING FIXME;
+                moveForwardDetect(sensor, 300); //CHANGE BASED ON TESTING;
             }
             //turn back
             turnClockwise(sensor, 86.5); // might need to move into else statement right above
@@ -862,7 +516,6 @@ void objectAvoid(oi_t *sensor)
 
 int fastScan(int startDeg, int endDeg)
 {
-//will scan at increment of 4 degrees. we can change this to be larger as we see fit.
 //scan variable declaration
     cybot_send_string("scanning\n");
     char scanned_data[45];
@@ -1504,3 +1157,344 @@ void autoManualDriver(oi_t *sensor_data)
     }
     return;
 }
+
+//void PIDController_Init(PIDController *pid)
+//{
+//
+//    /* Clear controller variables */
+//    pid->integrator = 0.0f;
+//    pid->prevError = 0.0f;
+//    pid->differentiator = 0.0f;
+//    pid->prevMeasurement = 0.0f;
+//    pid->out = 0.0f;
+//
+//}
+//
+//float PIDController_Update(PIDController *pid, float setpoint,
+//                           float measurement)
+//{
+//
+//    /*
+//     * Error signal (handling angle wrapping)
+//     */
+//    float error = angle_difference(setpoint, measurement);
+//
+//    /*
+//     * Proportional
+//     */
+//    float proportional = pid->Kp * error;
+//
+//    /*
+//     * Integral
+//     */
+//    pid->integrator += 0.5f * pid->Ki * pid->T * (error + pid->prevError);
+//
+//    /* Anti-wind-up via integrator clamping */
+//    if (pid->integrator > pid->limMaxInt)
+//    {
+//
+//        pid->integrator = pid->limMaxInt;
+//
+//    }
+//    else if (pid->integrator < pid->limMinInt)
+//    {
+//
+//        pid->integrator = pid->limMinInt;
+//    }
+//
+//    /*
+//     * Derivative (band-limited differentiator)
+//     */
+//    float delta_measurement = angle_difference(measurement,
+//                                               pid->prevMeasurement);
+//
+//    pid->differentiator = -(2.0f * pid->Kd * delta_measurement /* Note: derivative on measurement! */
+//    + (2.0f * pid->tau - pid->T) * pid->differentiator)
+//            / (2.0f * pid->tau + pid->T);
+//
+//    /*
+//     * Compute output and apply limits
+//     */
+//    pid->out = proportional; //+ pid->integrator + pid->differentiator;
+//
+//    if (pid->out > pid->limMax)
+//    {
+//        pid->out = pid->limMax;
+//    }
+//    else if (pid->out < pid->limMin)
+//    {
+//        pid->out = pid->limMin;
+//    }
+//
+//    /* Store error and measurement for later use */
+//    pid->prevError = error;
+//    pid->prevMeasurement = measurement;
+//
+//    /* Return controller output */
+//    return pid->out;
+//
+//}
+//
+//void bubble_sort(float arr[], int n)
+//{
+//    for (i = 0; i < n - 1; i++)
+//    {
+//        for (j = 0; j < n - i - 1; j++)
+//        {
+//            if (arr[j] > arr[j + 1])
+//            {
+//                // Swap arr[j] and arr[j + 1]
+//                float temp = arr[j];
+//                arr[j] = arr[j + 1];
+//                arr[j + 1] = temp;
+//            }
+//        }
+//    }
+//}
+//
+//float PID_linear_movement(oi_t *sensor, int totalDistance)
+//{
+//
+//    float distanceTraveled = 0;
+//    int16_t correct_angle_back, right_speed, left_speed;
+//    // resets the distance for the oi
+//    //int reset = sensor->distance;
+//    int i;
+//    float current_heading, error, heading_sum, desired_heading;
+//    oi_setWheels(0, 0);
+//
+//    /* Initialize PID controller */
+//    PIDController pid = { PID_KP, PID_KI, PID_KD, PID_TAU, PID_LIM_MIN,
+//                          PID_LIM_MAX, PID_LIM_MIN_INT, PID_LIM_MAX_INT,
+//                          SAMPLE_TIME_S };
+//
+//    PIDController_Init(&pid);
+//
+//    // Read and average initial heading
+//    float heading_readings[5];
+//    heading_sum = 0.0f;
+//    int num_readings = 5;
+//    for (i = 0; i < num_readings; i++)
+//    {
+//        heading_readings[i] = read_euler_heading(BNO055_ADDRESS_B)
+//                * (1.0f / 16.0f);
+//        timer_waitMillis(5);
+//    }
+//
+//    // Sort the array using bubble sort
+//    bubble_sort(heading_readings, num_readings);
+//
+//    // Calculate the average of the middle three readings
+//    for (i = 1; i < num_readings - 1; i++)
+//    { // Skip the lowest and highest
+//        heading_sum += heading_readings[i];
+//    }
+//    desired_heading = heading_sum / 3.0f;
+//
+//    // Initialize variables
+//    current_heading = desired_heading;
+//
+//    // Display initial headings
+//    printf("Initial Desired Heading: %.2f\n", desired_heading);
+//    printf("Initial Current Heading: %.2f\n", current_heading);
+//
+//    //float prev_error = 0.0f;
+//    //float integral = 0.0f;
+//    // Define speed variables
+//    int16_t base_speed = 0;               // Starting from 0 speed
+//    const int16_t desired_base_speed = 75; // Target base speed (mm/s)
+//    //const int16_t ramp_increment = 5;    // Speed increment per loop (mm/s)
+//    //const int16_t max_wheel_speed = 300; // Max wheel speed per Roomba specs (mm/s)
+//
+//    sensor->distance = 0;
+//
+//    while ((distanceTraveled < totalDistance) //&& (sensor->bumpRight == 0)
+////            && (sensor->bumpLeft == 0)
+////            && ((sensor->cliffFrontLeftSignal < 2500)
+////                    && (sensor->cliffFrontLeftSignal > 200))
+////            && ((sensor->cliffFrontRightSignal < 2500)
+////                    && (sensor->cliffFrontRightSignal > 200))
+////            && ((sensor->cliffLeftSignal < 2500)
+////                    && (sensor->cliffLeftSignal > 200))
+////            && ((sensor->cliffRightSignal < 2500)
+////                    && (sensor->cliffRightSignal > 200))
+//    )
+//
+//    {
+//        oi_update(sensor);
+//
+//        // Read current heading
+//
+//        heading_sum = 0.0f;
+//        num_readings = 10;
+//
+//        for (i = 0; i < num_readings; i++)
+//        {
+//            oi_update(sensor);
+//            heading_sum += read_euler_heading(BNO055_ADDRESS_B)
+//                    * (1.0f / 16.0f);
+//            timer_waitMillis(50);
+//        }
+//        current_heading = heading_sum / (float) num_readings;
+//
+//        // Compute heading error
+//        error = angle_difference(desired_heading, current_heading);
+//        if ((totalDistance - distanceTraveled) < 5)
+//        {
+//            //slow down before end
+//            base_speed = desired_base_speed
+//                    * ((totalDistance - distanceTraveled) / 5.0f);
+//        }
+//        if (error >= 8)
+//        {
+//            correct_angle_back = PIDController_Update(&pid, desired_heading,
+//                                                      current_heading); //CHANGED TO = 0; INSTEAD OF ;
+//        }
+//        else
+//        {
+//            correct_angle_back = 0;
+//        }
+//        // Adjust wheel speeds
+//        right_speed = base_speed - (int16_t) correct_angle_back; //
+//        left_speed = (base_speed + (int16_t) correct_angle_back); //
+//
+//        // Set wheel speeds
+//        oi_setWheels(right_speed, left_speed);
+//        // Accumulate distances
+//        distanceTraveled += sensor->distance;
+//
+//        // Display debug information
+//        lcd_printf("Error: %.2f\ndist travl: %.2f\n Td: %d\nCAB: %d", error,
+//                   distanceTraveled, totalDistance,
+//                   (int16_t) correct_angle_back);
+//        //Dist: %d mm\n
+//        // Wait for next iteration
+//        timer_waitMillis((uint32_t) (SAMPLE_TIME_S * 1000));
+//        oi_update(sensor);
+//
+//        base_speed = desired_base_speed;
+//
+//    }
+//    lcd_clear();
+//    oi_setWheels(0, 0);
+//    lcd_printf("BL: %d\nBR: %d\nCFL: %d\nCFR: %d\n", sensor->bumpLeft,
+//               sensor->bumpRight, sensor->cliffFrontLeftSignal,
+//               sensor->cliffFrontRightSignal);
+//    timer_waitMillis(5000);
+//    return distanceTraveled;
+//
+//}
+//
+//float angle_difference(float target_angle, float current_angle)
+//{
+//    float diff = (target_angle - current_angle);
+//    while (diff > 180.0f)
+//        diff -= 360.0f;
+//    while (diff < -180.0f)
+//        diff += 360.0f;
+//    return diff;
+//}
+//
+//float calculate_average_heading(void)
+//{
+//
+//    float heading_sum = 0.0f;
+//    float num_readings = 5;
+//    int i;
+//
+//    for (i = 0; i < num_readings; i++)
+//    {
+//        heading_sum += read_euler_heading(BNO055_ADDRESS_B) * (1.0f / 16.0f);
+//        timer_waitMillis(50);
+//    }
+//    float current_heading = heading_sum / num_readings;
+//    return current_heading;
+//}
+//
+//int turn_degrees(oi_t *sensor_data, float degrees)
+//{
+//    // Clear LCD and provide direction feedback
+//    lcd_clear();
+//    if (degrees == 90)
+//    {
+//        cybot_send_string("clockwise\n");
+//    }
+//    else if (degrees == -90)
+//    {
+//        cybot_send_string("counterclockwise\n");
+//    }
+//
+//    // Calculate initial and desired headings
+//    float initial_heading = calculate_average_heading();
+//    float desired_heading = initial_heading + degrees;
+//
+//    // Normalize desired heading to 0-360 range
+//    while (desired_heading > 360.0)
+//    {
+//        desired_heading -= 360.0;
+//    }
+//    while (desired_heading < 0.0)
+//    {
+//        desired_heading += 360.0;
+//    }
+//
+//    // Determine turn direction
+//    int turn_direction = (degrees > 0) ? 1 : -1;
+//
+//    // Fixed turning speed
+//    const int16_t TURN_SPEED = 50;
+//
+//    // Heading tolerance and timeout parameters
+//    const float HEADING_TOLERANCE = 5.0;  // 2-degree tolerance
+//    const int MAX_TIMEOUT = 100;
+//
+//    float current_heading = initial_heading;
+//    int timeout_counter = 0;
+//
+//    // Turn function
+//    while (true)
+//    {
+//        // Update sensor data and current heading
+//        oi_update(sensor_data);
+//        current_heading = calculate_average_heading();
+//        lcd_printf("desired heading %.2f\nCurrent heading: %.2f\n",
+//                   desired_heading, current_heading);
+//        // Calculate heading error
+//        float heading_error = abs(desired_heading - current_heading);
+//
+//        // Check if turn is complete within tolerance
+//        if (heading_error <= HEADING_TOLERANCE)
+//        {
+//            break;
+//        }
+//
+//        // Set wheel speeds for turning
+//        int16_t right_speed = -1 * turn_direction * TURN_SPEED;
+//        int16_t left_speed = turn_direction * TURN_SPEED;
+//        oi_setWheels(right_speed, left_speed);
+//
+//        // Timeout prevention
+//        timeout_counter++;
+//        if (timeout_counter > MAX_TIMEOUT)
+//        {
+//            lcd_printf("Turn Timeout: Failed\n");
+//            oi_setWheels(0, 0);
+//            return 0;  // Turn failed
+//        }
+//    }
+//
+//    // Stop the robot
+//    oi_setWheels(0, 0);
+//
+//    // Verify final heading
+//    current_heading = calculate_average_heading();
+//    float final_error = abs(desired_heading - current_heading);
+//
+//    if (final_error > HEADING_TOLERANCE)
+//    {
+//        lcd_printf("Turn Incomplete: Error %.2f\n", final_error);
+//        return 0;
+//    }
+//
+//    return 1;  // Turn successful
+//}
