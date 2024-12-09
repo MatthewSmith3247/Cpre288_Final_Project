@@ -23,6 +23,7 @@
 #include "IMU.h"
 #include "manual.h"
 
+//This file is for driving the robot in manual mode with zero autonomous functionality
 
 
 void move_forward_detect(oi_t *sensor_data, int totalDistance)
@@ -37,6 +38,8 @@ void move_forward_detect(oi_t *sensor_data, int totalDistance)
     short turn_LWP = 50;    // Left wheel power for turning
     int clear = sensor_data->distance; // clear it out before the bot moves 
     char distMoved[50];
+    
+    //while the bot is moving forward it will stop if the cliff or bump signals are triggered
     while ((distanceTraveled < totalDistance) && (sensor_data->bumpRight == 0)
             && (sensor_data->bumpLeft == 0)
             && ((sensor_data->cliffFrontLeftSignal < 2600)
@@ -49,7 +52,7 @@ void move_forward_detect(oi_t *sensor_data, int totalDistance)
                     && (sensor_data->cliffRightSignal > 200)))
 
     {
-        /// ---------
+        /// ----This section handles keeping our wheels in a straight line while the bot is moving 
 
         angle_correction += sensor_data->angle; // Accumulate angle deviation
 
@@ -65,7 +68,7 @@ void move_forward_detect(oi_t *sensor_data, int totalDistance)
             angle_correction = 0;
         }
         oi_setWheels(forward_RWP, forward_LWP); // Set adjusted wheel speed
-        ////-------
+        ////--------------
         oi_update(sensor_data);
         distanceTraveled += sensor_data->distance; //sensor_data Distance Returns a Value in MM
         lcd_printf("Dist: %f", distanceTraveled);
@@ -131,6 +134,9 @@ void move_forward_detect(oi_t *sensor_data, int totalDistance)
     }
 
 }
+
+
+//manual driver is the switch case that iterates over the different options of the keys that could be sent to the controller from the GUI
 
 void manualDriver(oi_t *sensor_data)
 {
@@ -200,7 +206,7 @@ void manualDriver(oi_t *sensor_data)
             distance = (note[0] - '0') * 100 + (note[1] - '0') * 10 + (note[2] - '0');
             lcd_printf("Dist: %d", distance);
             Audio_Specified_Song(0x00, Im_Moving_Fwd);
-            move_forward_detect(sensor_data, (float)distance); //Can not use MOVE FORWARD, Will use something else.
+            move_forward_detect(sensor_data, (float)distance); 
             cybot_send_string("done Moving\n");
             lcd_clear();
             oi_setWheels(0, 0); // stop
@@ -273,7 +279,8 @@ void manualDriver(oi_t *sensor_data)
 
 int fastScanManual(int startDeg, int endDeg)
 {
-//will scan at increment of 4 degrees. we can change this to be larger as we see fit.
+//will scan at increment of 2 degrees. we can change this to be larger as we see fit.
+// Scans within 5 sec, a little less accurate, but the speed is useful 
 //scan variable declaration
     int object_count;
     float object_distance[5];
@@ -290,7 +297,7 @@ int fastScanManual(int startDeg, int endDeg)
     int alreadyRec = 0;
     int pingDist;
 
-// Variables for object count FIXME move to correct scope (m)
+// Variables for object count 
     int heading = 0;
     float delta_distance;
     float initial_dist[5];
@@ -337,31 +344,6 @@ int fastScanManual(int startDeg, int endDeg)
     while (curr_degree <= endDeg)
     {
         servo_move(curr_degree); // scanning
-        // take in all values for current scan
-        // take in 3 values at current angle and translate to cm
-        //timer_waitMillis(10);
-//        for (i = 0; i < 5; i++)
-//        {
-//            val[i] = clean_IR_val();
-//            timer_waitMillis(10);
-//        }
-//        // bubble sort to get outliers at index 0 and index 4
-//        for (j = 0; j < 3; j++)
-//        {
-//            for (i = 0; i < 4; i++)
-//            {
-//                if (val[i] > val[i + 1])
-//                {
-//                    temp = val[i];
-//                    val[i] = val[i + 1];
-//                    val[i + 1] = temp;
-//                }
-//
-//            }
-//        }
-        // average the three values and store
-        //scanned_distance_vals_IR[2] = (val[1] + val[2] + val[3]) / 3;
-//
         scanned_distance_vals_IR[2] = clean_IR_val();
        if (scanned_distance_vals_IR[2] > 75)
         {
@@ -433,13 +415,6 @@ int fastScanManual(int startDeg, int endDeg)
           timer_waitMillis(10);
       }
     //Scan completed -- Data should be finished
-    // send last 2 values FIXME Debugging
-        sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[1],
-                scanned_distance_vals_IR[1]);
-    //cybot_send_string(scanned_data);
-        sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[2],
-                scanned_distance_vals_IR[2]);
-   // cybot_send_string(scanned_data);
 
     // Find Distances of Objects and store the values
         for (i = 0; i < object_count; i++)
@@ -475,7 +450,8 @@ int fastScanManual(int startDeg, int endDeg)
 
 int fullScanManualNoPlot(int startDeg, int endDeg)
 {
-//will scan at increment of 4 degrees. we can change this to be larger as we see fit.
+//will scan at increment of 2 degrees. we can change this to be larger as we see fit.
+//Scans with a bubble sort for a more precise scan, takes a little longer
 //scan variable declaration
     int object_count;
     float object_distance[5];
@@ -635,13 +611,6 @@ int fullScanManualNoPlot(int startDeg, int endDeg)
           timer_waitMillis(10);
       }
     //Scan completed -- Data should be finished
-    // send last 2 values FIXME Debugging
-        sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[1],
-                scanned_distance_vals_IR[1]);
-    //cybot_send_string(scanned_data);
-        sprintf(scanned_data, "%d\t\t%.0f\n\r", scanned_degree_vals[2],
-                scanned_distance_vals_IR[2]);
-   // cybot_send_string(scanned_data);
 
     // Find Distances of Objects and store the values
         for (i = 0; i < object_count; i++)
@@ -677,7 +646,8 @@ int fullScanManualNoPlot(int startDeg, int endDeg)
 
 int fullScanManual(int startDeg, int endDeg)
 {
-//will scan at increment of 4 degrees. we can change this to be larger as we see fit.
+//will scan at increment of 2 degrees. we can change this to be larger as we see fit.
+    //Includes a bubble sort and multiple scans at each point for accurate data. It sends the data points to the GUI to be plotted in a 2-D polar coordinate system
 //scan variable declaration
     int object_count;
     float object_distance[5];
