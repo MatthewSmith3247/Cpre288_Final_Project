@@ -33,10 +33,12 @@ RescueBot incorporates the following features:
 
 ### PathFinding
 * Incorporates a robust pathfinding algorithm to navigate safely in cluttered environments.
-![image](https://github.com/user-attachments/assets/a61c8d67-25c5-4239-b62d-46e4e46a4f9e)
 
 ### Accurate Object Positioning
 * Accurately positions detected objects on the GUI map, enhancing user awareness.
+* Simulated on DesMos
+
+![image](https://github.com/user-attachments/assets/a61c8d67-25c5-4239-b62d-46e4e46a4f9e)
 
 ### Internal Measurement Unit Integration
 * Utilizes an Internal Measurement Unit bno055 (IMU) for precise movement control via PID algorithms.
