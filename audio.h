@@ -2,7 +2,7 @@
  * audio.h
  *
  *  Created on: Nov 13, 2024
- *      Author: mss3247
+ *      Author: Matthew Smith
  */
 
 #ifndef AUDIO_H_
