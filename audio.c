@@ -2,7 +2,9 @@
  * audio.c
  *
  *  Created on: Nov 13, 2024
- *      Author: mss3247
+ *      Author: Matthew Smith
+ *      Hardware: DY-SV5W Audio Module
+ *      Communication: UART (Dip Switch in Mode 3)
  */
 
 #include "timer.h"
