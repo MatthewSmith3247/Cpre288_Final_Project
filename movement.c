@@ -1,3 +1,10 @@
+/*
+ *  Created on: Dec 5, 2024
+ *      Author: Matthew Smith
+ *      credits: Reece Dodge
+ *
+ */
+
 #include "open_interface.h"
 #include "uart.h"
 #include "movement.h"
