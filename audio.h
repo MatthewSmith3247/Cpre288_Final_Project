@@ -16,7 +16,10 @@
 
 
 //Defining the Macros for Audio Specified Song _LB _HB
-                                                       // Time to wait for after playing the mp3 in secounds
+//NOTE: For Audio Specified Song, you will base the naming system based on the date creation, not on the naming of the file
+
+
+                                                       // Time to wait for after playing the mp3 in seconds
 #define Good_Morning                             0x01  //time = 6
 #define Are_You_Ready                            0x08  //time = 2
 #define Im_Moving_Fwd                            0x09  //time = 2
