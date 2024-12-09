@@ -57,7 +57,7 @@ GPIO_PORTA_PCTL_R = (GPIO_PORTA_PCTL_R & 0x00FFFFFF) | 0x33000000; // Assign I2C
 
 //Configure the Address and Reset Lines on GPIO PortB
 GPIO_PORTB_DEN_R |= 0xC4;
-GPIO_PORTB_AFSEL_R &= 0xC0;
+GPIO_PORTB_AFSEL_R &= ~0xC0; //FIXME maybe
 GPIO_PORTB_DIR_R = (GPIO_PORTB_DIR_R & ~0x4) | 0xC0;
 
 // Configure the ADD and RESET Lines
@@ -468,11 +468,11 @@ return avg_sum;  // Combine MSB and LSB
 // Implementation
 int16_t read_euler_heading(uint8_t device_addr)
 {
-uint8_t data[2];
-I2C1_Read(device_addr, 0x1A, data, 1); // LSB
-timer_waitMillis(1);
-I2C1_Read(device_addr, 0x1B, data + 1, 1); // MSB
-return ((int16_t) data[1] << 8) | data[0];
+    uint8_t data[2];
+    I2C1_Read(device_addr, 0x1A, data, 1); // LSB
+    timer_waitMillis(1);
+    I2C1_Read(device_addr, 0x1B, data + 1, 1); // MSB
+    return ((int) data[1] << 8) | data[0];
 }
 
 int16_t read_euler_roll(uint8_t device_addr)

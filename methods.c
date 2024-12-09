@@ -427,6 +427,8 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
     {
         //oi_setWheels(100, 100); //CHANGE DURING TESTING
         //---
+        Audio_Specified_Song(0x00, Im_Moving_Fwd);
+
         angle_correction += sensor->angle; // Accumulate angle deviation
 
         // Adjust wheel power based on angle deviation
@@ -460,9 +462,15 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         cybot_send_string("bump left\n");
         Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
-        turnClockwise(sensor, 86.5);; //CHANGE BASED ON TESTING FIXME  //88
+        turnClockwise(sensor, 86.5); //CHANGE BASED ON TESTING FIXME  //88
         moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING
-        turnCounterClockwise(sensor, 86.5);; //CHANGE BASED ON TESTING  //88
+        turnCounterClockwise(sensor, 86.5); //CHANGE BASED ON TESTING  //88
+        fastScan(0, 180);
+        if (object_count >= 1)
+        {
+            objectAvoid(sensor);
+        }
+
         moveForwardDetect(sensor, (remainingDistance + 100));
     }
 
@@ -471,9 +479,14 @@ void moveForwardDetect(oi_t *sensor, int totalDistance) // input total Distance 
         cybot_send_string("bump right\n");
         Audio_Specified_Song(0x00, Small_Obj_Hit);
         moveBackward(sensor, 100);
-        turnCounterClockwise(sensor, 86.5); //88
-        moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING FIXME
-        turnClockwise(sensor, 86.5); //CHANGE BASED ON TESTING  //88
+        turnCounterClockwise(sensor, 86.5); //CHANGE BASED ON TESTING FIXME  //88
+        moveForwardDetect(sensor, 200); //CHANGE BASED ON TESTING
+        turnClockwise(sensor, 86.5); //CHANGE BASED ON TESTING FIXME  //88
+        fastScan(0, 180);
+        if (object_count >= 1)
+        {
+            objectAvoid(sensor);
+        }
         moveForwardDetect(sensor, (remainingDistance + 100));
     }
     if (sensor->cliffLeftSignal >= 2600 || sensor->cliffLeftSignal <= 200
@@ -860,8 +873,9 @@ int fastScan(int startDeg, int endDeg)
     int scanned_degree_vals[4];
     int alreadyRec = 0;
     int pingDist;
-
+    int heading;
 // Variables for object count FIXME move to correct scope (m)
+    //heading = (int)((float)read_euler_heading(0x29) / 16.0);
 
     float delta_distance;
     float initial_dist[5];
@@ -1050,8 +1064,8 @@ int fastScan(int startDeg, int endDeg)
     {
         //Format Data to be sent
         //Distance from bot \t angle in perspective to bot
-        sprintf(scanned_data, "%.2f\t%d\n", object_distance[i],
-                midpoint_angle[i]);
+        sprintf(scanned_data, "%.2f\t%d\t%d\n", object_distance[i],
+                midpoint_angle[i], heading);
         cybot_send_string(scanned_data);
     }
 // tell GUI there are no more objects
@@ -1075,10 +1089,10 @@ void find_bathroom(oi_t *sensor_data)
     {
         //avoid the object
         objectAvoid(sensor_data);
-        
+
     }
     while (1)
-    {      
+    {
         buffer = uart_receive();
         j = 0;
         while (buffer != '\n')
@@ -1121,7 +1135,7 @@ void find_bathroom(oi_t *sensor_data)
         }
         //check if there was an object to avoid
         fastScan(0, 180);
-        
+
         if (object_count >= 1)
         {
             //avoid the object
@@ -1406,6 +1420,9 @@ void autoManualDriver(oi_t *sensor_data)
     oi_setWheels(0, 0);
     while (1)
     {
+        if(flag1 == 1){
+            break;
+        }
         j = 0;
         buffer = uart_receive();
         while (buffer != '\n')
@@ -1485,4 +1502,5 @@ void autoManualDriver(oi_t *sensor_data)
         }
 
     }
+    return;
 }
