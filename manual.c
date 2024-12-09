@@ -7,19 +7,19 @@
 
 
 //INCLUDE ALL THE INCLUDES
-#include "adc.h" //YES
-#include "uart.h" //YES
-#include "Timer.h" //YES
-#include "lcd.h" //YES
-#include "math.h" //YES
-#include "open_interface.h" //YES
-#include "movement.h" //YES
-#include "button.h" //YES
-#include "ping.h" //YES
-#include "servo.h" //YES
-#include "adc.h" //YES
-#include "methods.h" //YES
-#include "audio.h" //YES
+#include "adc.h" 
+#include "uart.h" 
+#include "Timer.h" 
+#include "lcd.h" 
+#include "math.h" 
+#include "open_interface.h" 
+#include "movement.h" 
+#include "button.h" 
+#include "ping.h" 
+#include "servo.h" 
+#include "adc.h" 
+#include "methods.h" 
+#include "audio.h" 
 #include "IMU.h"
 #include "manual.h"
 
