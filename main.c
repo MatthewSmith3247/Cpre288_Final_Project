@@ -1,13 +1,12 @@
-//INCLUDE ALL THE INCLUDES
-#include "adc.h" //YES
-#include "uart.h" //YES
-#include "movement.h" //YES | NEED MOVEMENNT.C (NOT SURE ILL EVEN USE IT)
-#include "button.h" //YES
-#include "ping.h" //YES
-#include "servo.h" //YES
-#include "adc.h" //YES
-#include "methods.h" //YES
-#include "audio.h" //YES
+#include "adc.h" 
+#include "uart.h" 
+#include "movement.h" 
+#include "button.h" 
+#include "ping.h" 
+#include "servo.h" 
+#include "adc.h" 
+#include "methods.h" 
+#include "audio.h" 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -40,14 +39,14 @@ int main(void)
     uart_init(115200);
     servo_init();
     Audio_Init();
-    //I2C1_Init(); //now tied into all scans -- DO NOT COMMENT OUT
-    //BNO055_Init(); //now tied into all scans -- DO NOT COMMENT OUT
+    //I2C1_Init(); //now tied into all scans
+    //BNO055_Init(); //now tied into all scans
     connectToGui();
     //autoManualDriver(sensor);
     manualDriver(sensor);
 
 
-
+// used for testing scan data accuracy.
 //while (1){
 //    fastScan(0, 180);
 //    objectAvoid(sensor);
