@@ -2,7 +2,7 @@
  * IMU.c
  *
  *  Created on: Dec 5, 2024
- *      Author: mss3247
+ *      Author: Matthew Smith
  */
 #include <stdint.h>
 #include <stdbool.h>
