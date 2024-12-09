@@ -11,12 +11,12 @@
 #include "uart.h" //YES
 #include "Timer.h" //YES
 #include "lcd.h" //YES
-#include "math.h" //JUST MATH SO YES
+#include "math.h" //YES
 #include "open_interface.h" //YES
 #include "movement.h" //YES
 #include "button.h" //YES
 #include "ping.h" //YES
-#include "servo.h" //NO? THEY DO IT DIFFERENTLY
+#include "servo.h" //YES
 #include "adc.h" //YES
 #include "methods.h" //YES
 #include "audio.h" //YES
@@ -26,17 +26,16 @@
 
 
 void move_forward_detect(oi_t *sensor_data, int totalDistance)
-{       //Can not use MOVE FORWARD, Will use something else.
+{      
     float distanceTraveled = 0;
-    float objOppDist;
+    float objOppDist; //The object distance from the bot to the object along the opposite side 
     char message[50];
-    float angle_correction = 0;
+    float angle_correction = 0; //the angle of the robot to keep it in a straight line 
     short forward_RWP = 95; // Right wheel power for forward movement
     short forward_LWP = 80; // Left wheel power for forward movement
     short turn_RWP = 50;    // Right wheel power for turning
     short turn_LWP = 50;    // Left wheel power for turning
-    int clear = sensor_data->distance; // clear it out
-   // totalDistance += 45; // Python send error????
+    int clear = sensor_data->distance; // clear it out before the bot moves 
     char distMoved[50];
     while ((distanceTraveled < totalDistance) && (sensor_data->bumpRight == 0)
             && (sensor_data->bumpLeft == 0)
