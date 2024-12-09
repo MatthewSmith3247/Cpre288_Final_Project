@@ -1,9 +1,10 @@
 /*
- * movement.h
+ *  Created on: Dec 5, 2024
+ *      Author: Matthew Smith
+ *      credits: Reece Dodge
  *
- *  Created on: Sep 11, 2024
- *      Author: stanley9
  */
+
 
 #ifndef MOVEMENT_H_
 #define MOVEMENT_H_
