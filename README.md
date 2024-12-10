@@ -1,6 +1,7 @@
 # CprE 288 Embedded Systems Final Project: RescueBot (Fall 2024)
 ![IMG_3731 (1)](https://github.com/user-attachments/assets/58de896d-b8ba-4797-97e8-e919dfbd51f0)
-[Project.Proposal.V2.pdf](https://github.com/user-attachments/files/18069642/Project.Proposal.V2.pdf)
+[Project Proposal.pdf](https://github.com/user-attachments/files/18069645/Project.Proposal.pdf)
+
 
 ## Team: Rescue Robotics
 * Matthew Smith: mss3247@iastate.edu
