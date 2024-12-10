@@ -2,7 +2,8 @@
  * PID.c
  *
  *  Created on: Dec 5, 2024
- *      Author: mss3247
+ *      Author: Matthew Smith
+ *      Credits: Phil's Lab PID Implementation Video
  */
 #include <stdint.h>
 #include <stdbool.h>

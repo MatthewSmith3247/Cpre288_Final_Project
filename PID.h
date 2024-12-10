@@ -2,7 +2,7 @@
  * PID.h
  *
  *  Created on: Dec 5, 2024
- *      Author: mss3247
+ *      Author: Matthew Smith
  */
 
 #ifndef PID_H_
